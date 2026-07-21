@@ -45,7 +45,7 @@ ForgePath is being developed as both a practical developer tool and a study proj
 * Configuration management
 * Testing and release automation
 
-## Planned Features
+## Features
 
 ### Project discovery
 
@@ -57,7 +57,7 @@ ForgePath is being developed as both a practical developer tool and a study proj
 
 ### Technology detection
 
-ForgePath will initially detect projects from the following ecosystems:
+ForgePath detects projects from the following ecosystems:
 
 * JavaScript and TypeScript
 * PHP
@@ -65,7 +65,7 @@ ForgePath will initially detect projects from the following ecosystems:
 * Python
 * Go
 
-Supported frameworks and tools will include:
+Supported frameworks and tools include:
 
 * Next.js
 * React
@@ -102,7 +102,7 @@ Supported frameworks and tools will include:
 
 ### Shell integration
 
-ForgePath will integrate with shells such as PowerShell and Bash, allowing the selected project to become the current shell directory.
+ForgePath integrates with shells such as PowerShell and Bash, allowing the selected project to become the current shell directory.
 
 ```powershell
 fp
@@ -239,7 +239,7 @@ Linux:   ~/.config/forgepath/config.json
 macOS:   ~/Library/Application Support/forgepath/config.json
 ```
 
-## Planned Commands
+## Commands
 
 ```bash
 forgepath
@@ -257,7 +257,7 @@ List all detected projects.
 forgepath scan
 ```
 
-Scan a workspace and rebuild its project cache. `list` and `pick` reuse cache entries for up to 30 seconds; pass `--refresh` to bypass them.
+Scan a workspace and rebuild its project cache. `forgepath`, `list`, and `pick` reuse cache entries for up to 30 seconds; pass `--refresh` to bypass them.
 
 ```bash
 forgepath pick --print-path
@@ -269,6 +269,7 @@ The selector uses portable ASCII labels by default. Enable technology icons in a
 
 ```bash
 forgepath pick --icons nerd-font
+forgepath --icons nerd-font
 ```
 
 ```bash
@@ -299,7 +300,7 @@ forgepath config init
 
 Create an initial configuration file.
 
-Use `--config <path>` with any command to override the default configuration path.
+Use `--config <path>` or `FORGEPATH_CONFIG` to override the default configuration path.
 
 ```bash
 forgepath favorite add <project> [workspace]
@@ -308,7 +309,7 @@ forgepath favorite list
 forgepath recent
 ```
 
-Favorites are shown first in the selector, followed by recently used projects. Use `--state <path>` to override the state file location.
+Favorites are shown first in the selector, followed by recently used projects. Use `--state <path>` or `FORGEPATH_STATE` to override the state file location.
 
 Use `--cache <directory>` or `FORGEPATH_CACHE` to override the project cache location.
 

@@ -72,10 +72,21 @@ func TestCacheWarningsUseStderr(t *testing.T) {
 func TestRootUsesCacheEnvironmentAsFlagDefault(t *testing.T) {
 	configured := filepath.Join(t.TempDir(), "cache")
 	t.Setenv("FORGEPATH_CACHE", configured)
+	configuredConfig := filepath.Join(t.TempDir(), "config.json")
+	configuredState := filepath.Join(t.TempDir(), "state.json")
+	t.Setenv("FORGEPATH_CONFIG", configuredConfig)
+	t.Setenv("FORGEPATH_STATE", configuredState)
 	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
 
-	flag := command.PersistentFlags().Lookup("cache")
-	if flag == nil || flag.Value.String() != configured {
-		t.Fatalf("cache flag = %v, want environment path %q", flag, configured)
+	tests := map[string]string{
+		"cache":  configured,
+		"config": configuredConfig,
+		"state":  configuredState,
+	}
+	for name, want := range tests {
+		flag := command.PersistentFlags().Lookup(name)
+		if flag == nil || flag.Value.String() != want {
+			t.Fatalf("%s flag = %v, want environment path %q", name, flag, want)
+		}
 	}
 }

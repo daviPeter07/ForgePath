@@ -512,18 +512,18 @@ Cada recurso deve entrar somente quando:
 
 Em todas as fases:
 
-- [ ] Escrever código simples antes de abstrair
-- [ ] Evitar interfaces sem consumidores reais
-- [ ] Manter cada pacote com uma responsabilidade clara
-- [ ] Utilizar a biblioteca padrão quando ela for suficiente
-- [ ] Tratar erros explicitamente
-- [ ] Não comparar mensagens de erro por texto
-- [ ] Utilizar `filepath` para caminhos multiplataforma
-- [ ] Não depender de caminhos locais nos testes
-- [ ] Executar `go fmt ./...`
-- [ ] Executar `go vet ./...`
-- [ ] Executar `go test ./...`
-- [ ] Não avançar sem entender o código da fase atual
+- [x] Escrever código simples antes de abstrair
+- [x] Evitar interfaces sem consumidores reais
+- [x] Manter cada pacote com uma responsabilidade clara
+- [x] Utilizar a biblioteca padrão quando ela for suficiente
+- [x] Tratar erros explicitamente
+- [x] Não comparar mensagens de erro por texto
+- [x] Utilizar `filepath` para caminhos multiplataforma
+- [x] Não depender de caminhos locais nos testes
+- [x] Executar `go fmt ./...`
+- [x] Executar `go vet ./...`
+- [x] Executar `go test ./...`
+- [x] Não avançar sem entender o código da fase atual
 
 ---
 

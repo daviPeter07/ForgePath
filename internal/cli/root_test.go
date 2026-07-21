@@ -73,6 +73,98 @@ func TestListCommandReturnsErrors(t *testing.T) {
 	}
 }
 
+func TestRootCommandOpensSelector(t *testing.T) {
+	workspace := t.TempDir()
+	createCLIProject(t, workspace, "app", "go.mod")
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(workspace); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDirectory); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	var stdout bytes.Buffer
+	command := NewRootCommand(&stdout, &bytes.Buffer{})
+	command.SetIn(strings.NewReader("\r"))
+	command.SetArgs([]string{"--icons", "nerd-font", "--refresh"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	want := filepath.Join(workspace, "app") + "\n"
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
+	}
+}
+
+func TestRootCommandCancellation(t *testing.T) {
+	workspace := t.TempDir()
+	createCLIProject(t, workspace, "app", "go.mod")
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(workspace); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDirectory); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	var stdout bytes.Buffer
+	command := NewRootCommand(&stdout, &bytes.Buffer{})
+	command.SetIn(strings.NewReader("q"))
+	command.SetArgs([]string{})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty after cancellation", stdout.String())
+	}
+}
+
+func TestRootCommandReturnsErrorWithoutProjects(t *testing.T) {
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDirectory); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
+	command.SetArgs([]string{})
+	if err := command.Execute(); err == nil {
+		t.Fatal("Execute() error = nil, want no-projects error")
+	}
+}
+
+func TestRootHelpDoesNotStartSelector(t *testing.T) {
+	var stdout bytes.Buffer
+	command := NewRootCommand(&stdout, &bytes.Buffer{})
+	command.SetArgs([]string{"--help"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "Available Commands:") {
+		t.Fatalf("stdout = %q, want help", stdout.String())
+	}
+}
+
 func createCLIProject(t *testing.T, workspace, name string, markers ...string) {
 	t.Helper()
 	dir := filepath.Join(workspace, name)
