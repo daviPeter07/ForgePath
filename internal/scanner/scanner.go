@@ -55,10 +55,13 @@ func Scan(workspace string) ([]project.Project, error) {
 		}
 
 		projects = append(projects, project.Project{
-			Name:       entry.Name(),
-			Path:       path,
-			Technology: result.Technology,
-			Markers:    result.Markers,
+			Name:            entry.Name(),
+			Path:            path,
+			Technology:      result.Technology,
+			Markers:         result.Markers,
+			Frameworks:      result.Frameworks,
+			PackageManagers: result.PackageManagers,
+			HasDocker:       result.HasDocker,
 		})
 	}
 

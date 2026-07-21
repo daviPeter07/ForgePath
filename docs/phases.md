@@ -482,9 +482,9 @@ Enriquecer a apresentação dos projetos sem comprometer o núcleo já testado.
 
 ### Funcionalidades futuras
 
-- [ ] Detectar frameworks
-- [ ] Detectar gerenciadores de pacotes
-- [ ] Detectar Docker
+- [x] Detectar frameworks
+- [x] Detectar gerenciadores de pacotes
+- [x] Detectar Docker
 - [ ] Mostrar branch atual do Git
 - [ ] Mostrar alterações não commitadas
 - [ ] Adicionar ícones Nerd Font

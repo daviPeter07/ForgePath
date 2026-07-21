@@ -23,6 +23,7 @@ var rules = []rule{
 	{technology: project.TechnologyPython, alternatives: []string{"pyproject.toml", "requirements.txt", "Pipfile"}},
 	{technology: project.TechnologyTypeScript, required: []string{"package.json", "tsconfig.json"}},
 	{technology: project.TechnologyJavaScript, required: []string{"package.json"}, excluded: []string{"tsconfig.json"}},
+	{technology: project.TechnologyDocker, alternatives: []string{"Dockerfile", "compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}},
 }
 
 func Detect(path string) (Result, bool, error) {
@@ -40,7 +41,14 @@ func Detect(path string) (Result, bool, error) {
 			return Result{}, false, err
 		}
 		if matched {
-			return Result{Technology: candidate.technology, Markers: markers}, true, nil
+			metadata := detectMetadata(path)
+			return Result{
+				Technology:      candidate.technology,
+				Markers:         markers,
+				Frameworks:      metadata.frameworks,
+				PackageManagers: metadata.packageManagers,
+				HasDocker:       metadata.hasDocker,
+			}, true, nil
 		}
 	}
 

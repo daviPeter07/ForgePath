@@ -113,6 +113,31 @@ func TestModelViewIncludesHelp(t *testing.T) {
 	}
 }
 
+func TestProjectItemDescriptionIncludesMetadata(t *testing.T) {
+	item := projectItem{project: project.Project{
+		Technology:      project.TechnologyPHP,
+		Frameworks:      []project.Framework{project.FrameworkLaravel, project.FrameworkVue},
+		PackageManagers: []project.PackageManager{project.PackageManagerComposer, project.PackageManagerPNPM},
+		HasDocker:       true,
+	}}
+
+	want := "PHP | Laravel | Vue.js | Composer | pnpm | Docker"
+	if item.Description() != want {
+		t.Fatalf("Description() = %q, want %q", item.Description(), want)
+	}
+}
+
+func TestDockerProjectDescriptionDoesNotRepeatDocker(t *testing.T) {
+	item := projectItem{project: project.Project{
+		Technology: project.TechnologyDocker,
+		HasDocker:  true,
+	}}
+
+	if item.Description() != "Docker" {
+		t.Fatalf("Description() = %q, want Docker", item.Description())
+	}
+}
+
 func testModel() Model {
 	return NewModel([]project.Project{
 		{Name: "api", Technology: project.TechnologyGo, Markers: []string{"go.mod"}},

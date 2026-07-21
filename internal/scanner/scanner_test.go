@@ -27,7 +27,7 @@ func TestScanFindsAndSortsProjects(t *testing.T) {
 	}
 
 	want := []project.Project{
-		{Name: "alpha", Path: filepath.Join(workspace, "alpha"), Technology: project.TechnologyGo, Markers: []string{"go.mod"}},
+		{Name: "alpha", Path: filepath.Join(workspace, "alpha"), Technology: project.TechnologyGo, Markers: []string{"go.mod"}, PackageManagers: []project.PackageManager{project.PackageManagerGoModules}},
 		{Name: "middle", Path: filepath.Join(workspace, "middle"), Technology: project.TechnologyPython, Markers: []string{"pyproject.toml"}},
 		{Name: "zeta", Path: filepath.Join(workspace, "zeta"), Technology: project.TechnologyJavaScript, Markers: []string{"package.json"}},
 	}
@@ -46,6 +46,44 @@ func TestScanEmptyWorkspace(t *testing.T) {
 	}
 	if len(projects) != 0 {
 		t.Fatalf("len(Scan()) = %d, want 0", len(projects))
+	}
+}
+
+func TestScanPropagatesProjectMetadata(t *testing.T) {
+	workspace := t.TempDir()
+	dir := filepath.Join(workspace, "full-stack")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"composer.json":  `{"require":{"laravel/framework":"^12.0"}}`,
+		"package.json":   `{"dependencies":{"vue":"latest"}}`,
+		"pnpm-lock.yaml": "",
+		"Dockerfile":     "FROM scratch",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	projects, err := Scan(workspace)
+	if err != nil {
+		t.Fatalf("Scan() error = %v", err)
+	}
+	if len(projects) != 1 {
+		t.Fatalf("len(Scan()) = %d, want 1", len(projects))
+	}
+	wantFrameworks := []project.Framework{project.FrameworkLaravel, project.FrameworkVue}
+	if !reflect.DeepEqual(projects[0].Frameworks, wantFrameworks) {
+		t.Fatalf("frameworks = %q, want %q", projects[0].Frameworks, wantFrameworks)
+	}
+	wantManagers := []project.PackageManager{project.PackageManagerComposer, project.PackageManagerPNPM}
+	if !reflect.DeepEqual(projects[0].PackageManagers, wantManagers) {
+		t.Fatalf("package managers = %q, want %q", projects[0].PackageManagers, wantManagers)
+	}
+	if !projects[0].HasDocker {
+		t.Fatal("HasDocker = false, want true")
 	}
 }
 
