@@ -8,6 +8,7 @@ import (
 )
 
 func NewRootCommand(out, errOut io.Writer) *cobra.Command {
+	var configuredPath string
 	command := &cobra.Command{
 		Use:           "forgepath",
 		Short:         "Discover software projects in a workspace",
@@ -20,10 +21,16 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	}
 	command.SetOut(out)
 	command.SetErr(errOut)
+	command.PersistentFlags().StringVar(&configuredPath, "config", "", "configuration file path")
+	configPath := func() (string, error) {
+		return resolveConfigPath(configuredPath)
+	}
 	command.AddCommand(newListCommand())
 	command.AddCommand(newPickCommand())
-	command.AddCommand(newOpenCommand(action.OpenEditor))
+	command.AddCommand(newOpenCommand(action.OpenEditor, configPath))
 	command.AddCommand(newRevealCommand(action.OpenFolder))
+	command.AddCommand(newRunCommand(configPath, action.RunCommand))
+	command.AddCommand(newConfigCommand(configPath))
 
 	return command
 }

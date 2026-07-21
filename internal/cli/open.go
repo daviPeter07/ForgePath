@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	appconfig "github.com/daviPeter07/forgepath/internal/config"
 	"github.com/daviPeter07/forgepath/internal/project"
 	"github.com/daviPeter07/forgepath/internal/scanner"
 	"github.com/spf13/cobra"
@@ -14,7 +15,7 @@ import (
 type openEditorFunc func(context.Context, string, string) error
 type openFolderFunc func(context.Context, string) error
 
-func newOpenCommand(openEditor openEditorFunc) *cobra.Command {
+func newOpenCommand(openEditor openEditorFunc, configPath configPathFunc) *cobra.Command {
 	editor := os.Getenv("FORGEPATH_EDITOR")
 	command := &cobra.Command{
 		Use:   "open <project> [workspace]",
@@ -22,7 +23,18 @@ func newOpenCommand(openEditor openEditorFunc) *cobra.Command {
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if editor == "" {
-				return fmt.Errorf("editor is required: use --editor or FORGEPATH_EDITOR")
+				path, err := configPath()
+				if err != nil {
+					return err
+				}
+				configuration, err := appconfig.Load(path)
+				if err != nil {
+					return fmt.Errorf("editor is required: use --editor, FORGEPATH_EDITOR, or configure editor.executable: %w", err)
+				}
+				editor = configuration.Editor.Executable
+				if editor == "" {
+					return fmt.Errorf("editor is required: use --editor, FORGEPATH_EDITOR, or configure editor.executable")
+				}
 			}
 			found, err := resolveProject(cmd.Context(), args[0], args[1:])
 			if err != nil {

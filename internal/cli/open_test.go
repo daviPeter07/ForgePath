@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +18,7 @@ func TestOpenCommandResolvesProject(t *testing.T) {
 		receivedPath = path
 		receivedEditor = editor
 		return nil
-	})
+	}, unusedConfigPath)
 	command.SetArgs([]string{"project with spaces", workspace, "--editor", "test-editor"})
 
 	if err := command.Execute(); err != nil {
@@ -54,7 +55,7 @@ func TestOpenCommandReturnsMissingProjectError(t *testing.T) {
 	command := newOpenCommand(func(context.Context, string, string) error {
 		t.Fatal("open editor called for missing project")
 		return nil
-	})
+	}, unusedConfigPath)
 	command.SetArgs([]string{"missing", t.TempDir()})
 
 	if err := command.Execute(); err == nil {
@@ -71,7 +72,7 @@ func TestOpenCommandUsesEditorEnvironment(t *testing.T) {
 	command := newOpenCommand(func(_ context.Context, _, editor string) error {
 		receivedEditor = editor
 		return nil
-	})
+	}, unusedConfigPath)
 	command.SetArgs([]string{"app", workspace})
 
 	if err := command.Execute(); err != nil {
@@ -79,6 +80,27 @@ func TestOpenCommandUsesEditorEnvironment(t *testing.T) {
 	}
 	if receivedEditor != "configured-editor" {
 		t.Fatalf("editor = %q, want configured-editor", receivedEditor)
+	}
+}
+
+func TestOpenCommandUsesConfiguredEditor(t *testing.T) {
+	t.Setenv("FORGEPATH_EDITOR", "")
+	workspace := t.TempDir()
+	createCLIProject(t, workspace, "app", "go.mod")
+	configPath := writeCLIConfig(t, `{"editor":{"executable":"configured-editor.exe"}}`)
+
+	var receivedEditor string
+	command := newOpenCommand(func(_ context.Context, _, editor string) error {
+		receivedEditor = editor
+		return nil
+	}, func() (string, error) { return configPath, nil })
+	command.SetArgs([]string{"app", workspace})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if receivedEditor != "configured-editor.exe" {
+		t.Fatalf("editor = %q, want configured editor", receivedEditor)
 	}
 }
 
@@ -105,4 +127,8 @@ func TestResolveProjectUsesCurrentDirectory(t *testing.T) {
 	if found.Path != filepath.Join(workspace, "app") {
 		t.Fatalf("resolved path = %q, want project path", found.Path)
 	}
+}
+
+func unusedConfigPath() (string, error) {
+	return "", errors.New("config path should not be used")
 }

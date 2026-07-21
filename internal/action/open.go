@@ -43,24 +43,32 @@ func folderCommand(goos, path string) (string, []string, error) {
 }
 
 func editorCommand(goos, editor, path string) (*exec.Cmd, error) {
-	if goos == "windows" {
-		extension := strings.ToLower(filepath.Ext(editor))
-		if extension == ".cmd" || extension == ".bat" {
-			return nil, fmt.Errorf("batch editor launcher %q is not supported; use the editor .exe", editor)
-		}
-	}
-
-	executable, err := exec.LookPath(editor)
+	executable, err := safeExecutable(goos, editor)
 	if err != nil {
 		return nil, err
 	}
+	return exec.Command(executable, path), nil
+}
+
+func safeExecutable(goos, executable string) (string, error) {
 	if goos == "windows" {
 		extension := strings.ToLower(filepath.Ext(executable))
 		if extension == ".cmd" || extension == ".bat" {
-			return nil, fmt.Errorf("batch editor launcher %q is not supported; use the editor .exe", executable)
+			return "", fmt.Errorf("batch launcher %q is not supported; use an .exe", executable)
 		}
 	}
-	return exec.Command(executable, path), nil
+
+	resolved, err := exec.LookPath(executable)
+	if err != nil {
+		return "", err
+	}
+	if goos == "windows" {
+		extension := strings.ToLower(filepath.Ext(resolved))
+		if extension == ".cmd" || extension == ".bat" {
+			return "", fmt.Errorf("batch launcher %q is not supported; use an .exe", resolved)
+		}
+	}
+	return resolved, nil
 }
 
 func startEditor(ctx context.Context, command *exec.Cmd) error {

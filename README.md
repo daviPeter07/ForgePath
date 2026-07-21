@@ -207,35 +207,25 @@ coverage
 
 ## Configuration
 
-ForgePath will use a local configuration file to define workspaces, editor preferences, project commands, and interface settings.
+ForgePath uses a local configuration file for editor preferences and project commands.
 
 Example:
 
 ```json
 {
-  "workspaces": [
-    "D:\\Development",
-    "D:\\SyncForge",
-    "D:\\College"
-  ],
   "editor": {
     "name": "phpstorm",
     "executable": "phpstorm64.exe"
   },
-  "scan": {
-    "maxDepth": 2,
-    "ignoreHidden": true
-  },
-  "icons": "nerd-font",
   "projects": {
     "story-pilot": {
-      "command": "pnpm dev"
+      "command": ["node", "node_modules/vite/bin/vite.js"]
     },
     "operis": {
-      "command": "composer dev"
+      "command": ["php", "composer.phar", "dev"]
     },
     "mastermind": {
-      "command": "docker compose up"
+      "command": ["docker", "compose", "up"]
     }
   }
 }
@@ -296,16 +286,20 @@ forgepath reveal <project> [workspace]
 Reveal a project in Explorer, Finder, or the Linux file manager.
 
 ```bash
-forgepath run <project>
+forgepath run <project> [workspace]
 ```
 
-Run the configured development command.
+Run the development command configured for a project. Commands are argument arrays and are never interpreted by a shell.
+
+On Windows, `.cmd` and `.bat` launchers are rejected. Configure a real `.exe` or invoke a script through its interpreter, such as `node.exe` or `php.exe`.
 
 ```bash
 forgepath config init
 ```
 
 Create an initial configuration file.
+
+Use `--config <path>` with any command to override the default configuration path.
 
 ```bash
 forgepath completion powershell
