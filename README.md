@@ -307,9 +307,23 @@ The intended PowerShell integration is:
 
 ```powershell
 function fp {
-    $target = & forgepath pick --print-path
+    $previousOutputEncoding = [Console]::OutputEncoding
 
-    if ($LASTEXITCODE -eq 0 -and $target) {
+    try {
+        [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+        $target = & forgepath pick --print-path @args
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        [Console]::OutputEncoding = $previousOutputEncoding
+    }
+
+    if ($exitCode -ne 0) {
+        Write-Error "forgepath pick failed with exit code $exitCode"
+        return
+    }
+
+    if ($target) {
         Set-Location -LiteralPath $target
     }
 }
@@ -327,8 +341,13 @@ ForgePath opens the project selector and navigates the current terminal to the s
 
 ```bash
 fp() {
-    local target
-    target="$(forgepath pick --print-path)"
+    local target status
+    target="$(forgepath pick --print-path "$@")"
+    status=$?
+
+    if [ "$status" -ne 0 ]; then
+        return "$status"
+    fi
 
     if [ -n "$target" ]; then
         cd -- "$target"

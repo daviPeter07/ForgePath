@@ -406,12 +406,12 @@ Permitir que o usuário selecione um projeto e navegue até a pasta no terminal 
 
 ### Tarefas
 
-- [ ] Criar um comando que imprima apenas o caminho selecionado
-- [ ] Separar a saída visual da saída utilizada pelo shell
-- [ ] Criar função para PowerShell
-- [ ] Criar função para Bash
-- [ ] Testar caminhos com espaços
-- [ ] Tratar cancelamento da seleção
+- [x] Criar um comando que imprima apenas o caminho selecionado
+- [x] Separar a saída visual da saída utilizada pelo shell
+- [x] Criar função para PowerShell
+- [x] Criar função para Bash
+- [x] Testar caminhos com espaços
+- [x] Tratar cancelamento da seleção
 
 ### Exemplo de uso esperado
 
@@ -536,6 +536,6 @@ Em todas as fases:
 - [x] Fase 5 — Generalização da detecção
 - [x] Fase 6 — Scanner de workspaces
 - [x] Fase 7 — Interface por linha de comando
-- [ ] Fase 8 — Integração com o shell
+- [x] Fase 8 — Integração com o shell
 - [ ] Fase 9 — Interface interativa no terminal
 - [ ] Fase 10 — Metadados e recursos adicionais
