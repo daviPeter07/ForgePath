@@ -29,3 +29,21 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+      - name: Validate Bash integration
+        run: bash -n shell/forgepath.sh
+
+      - name: Validate PowerShell integration
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path "shell/forgepath.ps1"),
+            [ref]$tokens,
+            [ref]$parseErrors
+          ) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | Write-Error
+            exit 1
+          }
