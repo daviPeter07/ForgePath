@@ -489,8 +489,8 @@ Enriquecer a apresentação dos projetos sem comprometer o núcleo já testado.
 - [x] Mostrar alterações não commitadas
 - [x] Adicionar ícones Nerd Font
 - [x] Criar fallback sem ícones
-- [ ] Abrir projeto no editor
-- [ ] Abrir pasta no gerenciador de arquivos
+- [x] Abrir projeto no editor
+- [x] Abrir pasta no gerenciador de arquivos
 - [ ] Executar comandos de desenvolvimento
 - [ ] Adicionar configuração persistente
 - [ ] Adicionar favoritos
