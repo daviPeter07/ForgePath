@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/project"
 )
 
@@ -74,7 +75,7 @@ func TestSelectFiltersAndSelectsProject(t *testing.T) {
 	}
 	input := strings.NewReader("/web\r\r")
 
-	selected, found, err := Select(context.Background(), projects, input, &bytes.Buffer{})
+	selected, found, err := Select(context.Background(), projects, icon.ModeASCII, input, &bytes.Buffer{})
 	if err != nil {
 		t.Fatalf("Select() error = %v", err)
 	}
@@ -90,7 +91,7 @@ func TestSelectHonorsCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := Select(ctx, []project.Project{{Name: "api"}}, strings.NewReader(""), &bytes.Buffer{})
+	_, _, err := Select(ctx, []project.Project{{Name: "api"}}, icon.ModeASCII, strings.NewReader(""), &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("Select() error = nil, want context cancellation error")
 	}
@@ -130,6 +131,19 @@ func TestProjectItemDescriptionIncludesMetadata(t *testing.T) {
 	}
 }
 
+func TestProjectItemTitleUsesConfiguredIcons(t *testing.T) {
+	project := project.Project{Name: "forgepath", Technology: project.TechnologyGo}
+	ascii := projectItem{project: project, icons: icon.ModeASCII}.Title()
+	nerdFont := projectItem{project: project, icons: icon.ModeNerdFont}.Title()
+
+	if ascii != "[GO] forgepath" {
+		t.Fatalf("ASCII Title() = %q, want %q", ascii, "[GO] forgepath")
+	}
+	if nerdFont == ascii || !strings.HasSuffix(nerdFont, " forgepath") {
+		t.Fatalf("Nerd Font Title() = %q, want distinct icon", nerdFont)
+	}
+}
+
 func TestProjectItemDescriptionMarksUnknownGitStatus(t *testing.T) {
 	item := projectItem{project: project.Project{
 		Technology: project.TechnologyGo,
@@ -156,5 +170,5 @@ func testModel() Model {
 	return NewModel([]project.Project{
 		{Name: "api", Technology: project.TechnologyGo, Markers: []string{"go.mod"}},
 		{Name: "web", Technology: project.TechnologyTypeScript, Markers: []string{"package.json", "tsconfig.json"}},
-	})
+	}, icon.ModeASCII)
 }
