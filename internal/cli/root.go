@@ -3,6 +3,7 @@ package cli
 import (
 	"io"
 
+	"github.com/daviPeter07/forgepath/internal/action"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +22,8 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	command.SetErr(errOut)
 	command.AddCommand(newListCommand())
 	command.AddCommand(newPickCommand())
+	command.AddCommand(newOpenCommand(action.OpenEditor))
+	command.AddCommand(newRevealCommand(action.OpenFolder))
 
 	return command
 }

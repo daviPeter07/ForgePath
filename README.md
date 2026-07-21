@@ -282,10 +282,18 @@ forgepath pick --icons nerd-font
 ```
 
 ```bash
-forgepath open <project>
+forgepath open <project> [workspace] --editor code
 ```
 
-Open a project in the configured editor.
+Open a project in an editor. Set an executable with `--editor` or `FORGEPATH_EDITOR`.
+
+On Windows, provide the editor `.exe` path rather than a `.cmd` or `.bat` launcher.
+
+```bash
+forgepath reveal <project> [workspace]
+```
+
+Reveal a project in Explorer, Finder, or the Linux file manager.
 
 ```bash
 forgepath run <project>
