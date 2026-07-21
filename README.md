@@ -257,7 +257,7 @@ List all detected projects.
 forgepath scan
 ```
 
-Scan configured workspaces and rebuild the project index.
+Scan a workspace and rebuild its project cache. `list` and `pick` reuse cache entries for up to 30 seconds; pass `--refresh` to bypass them.
 
 ```bash
 forgepath pick --print-path
@@ -309,6 +309,8 @@ forgepath recent
 ```
 
 Favorites are shown first in the selector, followed by recently used projects. Use `--state <path>` to override the state file location.
+
+Use `--cache <directory>` or `FORGEPATH_CACHE` to override the project cache location.
 
 ```bash
 forgepath completion powershell

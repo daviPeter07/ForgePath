@@ -5,16 +5,20 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/daviPeter07/forgepath/internal/scanner"
 	"github.com/spf13/cobra"
 )
 
 func newListCommand(statePaths ...statePathFunc) *cobra.Command {
+	return newListCommandWithScanner(directProjectScan, statePaths...)
+}
+
+func newListCommandWithScanner(scan scanProjectsFunc, statePaths ...statePathFunc) *cobra.Command {
 	var statePath statePathFunc
 	if len(statePaths) > 0 {
 		statePath = statePaths[0]
 	}
-	return &cobra.Command{
+	var refresh bool
+	command := &cobra.Command{
 		Use:   "list [workspace]",
 		Short: "List projects found in a workspace",
 		Args:  cobra.MaximumNArgs(1),
@@ -23,7 +27,7 @@ func newListCommand(statePaths ...statePathFunc) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			projects, err := scanner.Scan(workspace)
+			projects, err := scanProjects(cmd, scan, workspace, refresh)
 			if err != nil {
 				return err
 			}
@@ -38,6 +42,8 @@ func newListCommand(statePaths ...statePathFunc) *cobra.Command {
 			return nil
 		},
 	}
+	command.Flags().BoolVar(&refresh, "refresh", false, "ignore and rebuild the project cache")
+	return command
 }
 
 func workspaceFrom(args []string) (string, error) {

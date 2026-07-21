@@ -495,7 +495,7 @@ Enriquecer a apresentação dos projetos sem comprometer o núcleo já testado.
 - [x] Adicionar configuração persistente
 - [x] Adicionar favoritos
 - [x] Adicionar projetos recentes
-- [ ] Criar cache de projetos
+- [x] Criar cache de projetos
 
 ### Regra de evolução
 
@@ -538,4 +538,4 @@ Em todas as fases:
 - [x] Fase 7 — Interface por linha de comando
 - [x] Fase 8 — Integração com o shell
 - [x] Fase 9 — Interface interativa no terminal
-- [ ] Fase 10 — Metadados e recursos adicionais
+- [x] Fase 10 — Metadados e recursos adicionais
