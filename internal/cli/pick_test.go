@@ -20,7 +20,7 @@ func TestPickCommandPrintsOnlySelectedPath(t *testing.T) {
 	var stderr bytes.Buffer
 	command := NewRootCommand(&stdout, &stderr)
 	command.SetIn(strings.NewReader("\x1b[B\r"))
-	command.SetArgs([]string{"pick", workspace, "--print-path"})
+	command.SetArgs([]string{"pick", workspace, "--print-path", "--icons", "nerd-font"})
 
 	if err := command.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)
@@ -49,6 +49,15 @@ func TestPickCommandCancellation(t *testing.T) {
 	}
 	if stdout.Len() != 0 {
 		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+}
+
+func TestPickCommandRejectsInvalidIconMode(t *testing.T) {
+	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
+	command.SetArgs([]string{"pick", "--icons", "emoji"})
+
+	if err := command.Execute(); err == nil {
+		t.Fatal("Execute() error = nil, want invalid icon mode error")
 	}
 }
 

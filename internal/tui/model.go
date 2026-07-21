@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/project"
 )
 
@@ -20,10 +21,11 @@ var selectKey = key.NewBinding(
 
 type projectItem struct {
 	project project.Project
+	icons   icon.Mode
 }
 
 func (item projectItem) Title() string {
-	return item.project.Name
+	return icon.Label(item.project.Technology, item.icons) + " " + item.project.Name
 }
 
 func (item projectItem) Description() string {
@@ -50,7 +52,7 @@ func (item projectItem) Description() string {
 }
 
 func (item projectItem) FilterValue() string {
-	return item.project.Name + " " + string(item.project.Technology)
+	return item.Title()
 }
 
 type Model struct {
@@ -60,10 +62,10 @@ type Model struct {
 	cancelled    bool
 }
 
-func NewModel(projects []project.Project) Model {
+func NewModel(projects []project.Project, icons icon.Mode) Model {
 	items := make([]list.Item, len(projects))
 	for index, found := range projects {
-		items[index] = projectItem{project: found}
+		items[index] = projectItem{project: found, icons: icons}
 	}
 
 	accent := lipgloss.Color("#F59E0B")
@@ -151,9 +153,9 @@ func (m Model) Cancelled() bool {
 	return m.cancelled
 }
 
-func Select(ctx context.Context, projects []project.Project, input io.Reader, output io.Writer) (project.Project, bool, error) {
+func Select(ctx context.Context, projects []project.Project, icons icon.Mode, input io.Reader, output io.Writer) (project.Project, bool, error) {
 	program := tea.NewProgram(
-		NewModel(projects),
+		NewModel(projects, icons),
 		tea.WithContext(ctx),
 		tea.WithInput(input),
 		tea.WithOutput(output),

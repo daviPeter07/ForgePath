@@ -275,6 +275,12 @@ forgepath pick --print-path
 
 Select a project and print only its directory path.
 
+The selector uses portable ASCII labels by default. Enable technology icons in a Nerd Font terminal with:
+
+```bash
+forgepath pick --icons nerd-font
+```
+
 ```bash
 forgepath open <project>
 ```
@@ -362,7 +368,7 @@ fp() {
 * Go 1.25 or newer
 * Git
 * A terminal with ANSI color support
-* A Nerd Font for language and tool icons
+* Optional: a Nerd Font for language and tool icons
 
 ### Clone the repository
 
