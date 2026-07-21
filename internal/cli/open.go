@@ -15,7 +15,11 @@ import (
 type openEditorFunc func(context.Context, string, string) error
 type openFolderFunc func(context.Context, string) error
 
-func newOpenCommand(openEditor openEditorFunc, configPath configPathFunc) *cobra.Command {
+func newOpenCommand(openEditor openEditorFunc, configPath configPathFunc, statePaths ...statePathFunc) *cobra.Command {
+	var statePath statePathFunc
+	if len(statePaths) > 0 {
+		statePath = statePaths[0]
+	}
 	editor := os.Getenv("FORGEPATH_EDITOR")
 	command := &cobra.Command{
 		Use:   "open <project> [workspace]",
@@ -43,6 +47,7 @@ func newOpenCommand(openEditor openEditorFunc, configPath configPathFunc) *cobra
 			if err := openEditor(cmd.Context(), found.Path, editor); err != nil {
 				return fmt.Errorf("open %q in editor %q: %w", found.Name, editor, err)
 			}
+			recordRecentBestEffort(cmd, statePath, found.Path)
 			return nil
 		},
 	}
@@ -50,7 +55,11 @@ func newOpenCommand(openEditor openEditorFunc, configPath configPathFunc) *cobra
 	return command
 }
 
-func newRevealCommand(openFolder openFolderFunc) *cobra.Command {
+func newRevealCommand(openFolder openFolderFunc, statePaths ...statePathFunc) *cobra.Command {
+	var statePath statePathFunc
+	if len(statePaths) > 0 {
+		statePath = statePaths[0]
+	}
 	return &cobra.Command{
 		Use:   "reveal <project> [workspace]",
 		Short: "Reveal a project in the file manager",
@@ -63,6 +72,7 @@ func newRevealCommand(openFolder openFolderFunc) *cobra.Command {
 			if err := openFolder(cmd.Context(), found.Path); err != nil {
 				return fmt.Errorf("reveal %q: %w", found.Name, err)
 			}
+			recordRecentBestEffort(cmd, statePath, found.Path)
 			return nil
 		},
 	}

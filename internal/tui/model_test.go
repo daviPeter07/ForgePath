@@ -144,6 +144,19 @@ func TestProjectItemTitleUsesConfiguredIcons(t *testing.T) {
 	}
 }
 
+func TestFavoriteProjectTitle(t *testing.T) {
+	favorite := project.Project{Name: "forgepath", Technology: project.TechnologyGo, Favorite: true}
+
+	ascii := projectItem{project: favorite, icons: icon.ModeASCII}.Title()
+	if ascii != "[F] [GO] forgepath" {
+		t.Fatalf("ASCII favorite title = %q", ascii)
+	}
+	nerd := projectItem{project: favorite, icons: icon.ModeNerdFont}.Title()
+	if !strings.HasPrefix(nerd, " ") {
+		t.Fatalf("Nerd Font favorite title = %q", nerd)
+	}
+}
+
 func TestProjectItemDescriptionMarksUnknownGitStatus(t *testing.T) {
 	item := projectItem{project: project.Project{
 		Technology: project.TechnologyGo,

@@ -9,7 +9,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newPickCommand() *cobra.Command {
+func newPickCommand(statePaths ...statePathFunc) *cobra.Command {
+	var statePath statePathFunc
+	if len(statePaths) > 0 {
+		statePath = statePaths[0]
+	}
 	var iconMode string
 	command := &cobra.Command{
 		Use:   "pick [workspace]",
@@ -20,16 +24,15 @@ func newPickCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			workspace, err := workspaceFrom(args)
 			if err != nil {
 				return err
 			}
-
 			projects, err := scanner.Scan(workspace)
 			if err != nil {
 				return err
 			}
+			decorateProjectsBestEffort(cmd, statePath, projects)
 			if len(projects) == 0 {
 				return fmt.Errorf("no projects found in %q", workspace)
 			}
@@ -41,9 +44,11 @@ func newPickCommand() *cobra.Command {
 			if !found {
 				return nil
 			}
-
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), selected.Path)
-			return err
+			if _, err = fmt.Fprintln(cmd.OutOrStdout(), selected.Path); err != nil {
+				return err
+			}
+			recordRecentBestEffort(cmd, statePath, selected.Path)
+			return nil
 		},
 	}
 	command.Flags().Bool("print-path", false, "print only the selected project path")

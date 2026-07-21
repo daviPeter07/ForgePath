@@ -13,7 +13,11 @@ import (
 
 type runCommandFunc func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error
 
-func newRunCommand(configPath configPathFunc, runCommand runCommandFunc) *cobra.Command {
+func newRunCommand(configPath configPathFunc, runCommand runCommandFunc, statePaths ...statePathFunc) *cobra.Command {
+	var statePath statePathFunc
+	if len(statePaths) > 0 {
+		statePath = statePaths[0]
+	}
 	return &cobra.Command{
 		Use:   "run <project> [workspace]",
 		Short: "Run a configured project command",
@@ -49,6 +53,7 @@ func newRunCommand(configPath configPathFunc, runCommand runCommandFunc) *cobra.
 			); err != nil {
 				return fmt.Errorf("run command for %q: %w", found.Name, err)
 			}
+			recordRecentBestEffort(cmd, statePath, found.Path)
 			return nil
 		},
 	}

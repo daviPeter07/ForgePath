@@ -1,5 +1,7 @@
 package project
 
+import "time"
+
 type Technology string
 type Framework string
 type PackageManager string
@@ -52,4 +54,6 @@ type Project struct {
 	GitBranch       string
 	GitDirty        bool
 	GitStatusKnown  bool
+	Favorite        bool
+	LastOpened      time.Time
 }
