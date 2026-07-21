@@ -1,0 +1,87 @@
+package cli
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestListCommand(t *testing.T) {
+	workspace := t.TempDir()
+	createCLIProject(t, workspace, "web", "package.json", "tsconfig.json")
+	createCLIProject(t, workspace, "api", "go.mod")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	command := NewRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"list", workspace})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	want := strings.Join([]string{
+		"api\tGo\t" + filepath.Join(workspace, "api"),
+		"web\tTypeScript\t" + filepath.Join(workspace, "web"),
+		"",
+	}, "\n")
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+func TestListCommandUsesCurrentDirectory(t *testing.T) {
+	workspace := t.TempDir()
+	createCLIProject(t, workspace, "app", "composer.json")
+
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(workspace); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDirectory); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	var stdout bytes.Buffer
+	command := NewRootCommand(&stdout, &bytes.Buffer{})
+	command.SetArgs([]string{"list"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "app\tPHP\t"+filepath.Join(workspace, "app")) {
+		t.Fatalf("stdout = %q, want project from current directory", stdout.String())
+	}
+}
+
+func TestListCommandReturnsErrors(t *testing.T) {
+	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
+	command.SetArgs([]string{"list", filepath.Join(t.TempDir(), "missing")})
+
+	if err := command.Execute(); err == nil {
+		t.Fatal("Execute() error = nil, want error")
+	}
+}
+
+func createCLIProject(t *testing.T, workspace, name string, markers ...string) {
+	t.Helper()
+	dir := filepath.Join(workspace, name)
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range markers {
+		if err := os.WriteFile(filepath.Join(dir, marker), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
