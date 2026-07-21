@@ -69,7 +69,7 @@ func Scan(workspace string) ([]project.Project, error) {
 		}
 		projects = append(projects, foundProject)
 	}
-	enrichWithGit(projects)
+	EnrichGit(projects)
 
 	sort.Slice(projects, func(i, j int) bool {
 		return projects[i].Name < projects[j].Name
@@ -78,7 +78,7 @@ func Scan(workspace string) ([]project.Project, error) {
 	return projects, nil
 }
 
-func enrichWithGit(projects []project.Project) {
+func EnrichGit(projects []project.Project) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
