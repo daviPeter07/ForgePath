@@ -359,7 +359,7 @@ fp() {
 
 ### Requirements
 
-* Go 1.24 or newer
+* Go 1.25 or newer
 * Git
 * A terminal with ANSI color support
 * A Nerd Font for language and tool icons

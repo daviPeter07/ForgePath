@@ -1,14 +1,10 @@
 package cli
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
-	"io"
-	"strconv"
-	"strings"
 
 	"github.com/daviPeter07/forgepath/internal/scanner"
+	"github.com/daviPeter07/forgepath/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -31,30 +27,15 @@ func newPickCommand() *cobra.Command {
 				return fmt.Errorf("no projects found in %q", workspace)
 			}
 
-			for index, found := range projects {
-				if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "%d. %s (%s)\n", index+1, found.Name, found.Technology); err != nil {
-					return err
-				}
-			}
-			if _, err := fmt.Fprint(cmd.ErrOrStderr(), "Select a project (Enter to cancel): "); err != nil {
+			selected, found, err := tui.Select(cmd.Context(), projects, cmd.InOrStdin(), cmd.ErrOrStderr())
+			if err != nil {
 				return err
 			}
-
-			selection, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
-			if err != nil && !errors.Is(err, io.EOF) {
-				return err
-			}
-			selection = strings.TrimSpace(selection)
-			if selection == "" {
+			if !found {
 				return nil
 			}
 
-			selected, err := strconv.Atoi(selection)
-			if err != nil || selected < 1 || selected > len(projects) {
-				return fmt.Errorf("invalid selection %q", selection)
-			}
-
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), projects[selected-1].Path)
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), selected.Path)
 			return err
 		},
 	}

@@ -448,15 +448,15 @@ Substituir a listagem simples por uma TUI navegável.
 
 ### Tarefas
 
-- [ ] Criar o modelo inicial da TUI
-- [ ] Carregar os projetos encontrados pelo scanner
-- [ ] Implementar navegação pelo teclado
-- [ ] Implementar seleção com Enter
-- [ ] Implementar pesquisa
-- [ ] Implementar ajuda de atalhos
-- [ ] Tratar redimensionamento do terminal
-- [ ] Separar apresentação e regras de negócio
-- [ ] Manter detector e scanner independentes da TUI
+- [x] Criar o modelo inicial da TUI
+- [x] Carregar os projetos encontrados pelo scanner
+- [x] Implementar navegação pelo teclado
+- [x] Implementar seleção com Enter
+- [x] Implementar pesquisa
+- [x] Implementar ajuda de atalhos
+- [x] Tratar redimensionamento do terminal
+- [x] Separar apresentação e regras de negócio
+- [x] Manter detector e scanner independentes da TUI
 
 ### Conceitos de Go estudados
 
@@ -537,5 +537,5 @@ Em todas as fases:
 - [x] Fase 6 — Scanner de workspaces
 - [x] Fase 7 — Interface por linha de comando
 - [x] Fase 8 — Integração com o shell
-- [ ] Fase 9 — Interface interativa no terminal
+- [x] Fase 9 — Interface interativa no terminal
 - [ ] Fase 10 — Metadados e recursos adicionais

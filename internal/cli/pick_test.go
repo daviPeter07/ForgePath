@@ -19,7 +19,7 @@ func TestPickCommandPrintsOnlySelectedPath(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	command := NewRootCommand(&stdout, &stderr)
-	command.SetIn(strings.NewReader("2\n"))
+	command.SetIn(strings.NewReader("\x1b[B\r"))
 	command.SetArgs([]string{"pick", workspace, "--print-path"})
 
 	if err := command.Execute(); err != nil {
@@ -30,8 +30,8 @@ func TestPickCommandPrintsOnlySelectedPath(t *testing.T) {
 	if stdout.String() != want {
 		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
 	}
-	if !strings.Contains(stderr.String(), "web app (JavaScript)") {
-		t.Fatalf("stderr = %q, want visual project list", stderr.String())
+	if stderr.Len() == 0 {
+		t.Fatal("stderr is empty, want TUI rendering")
 	}
 }
 
@@ -41,7 +41,7 @@ func TestPickCommandCancellation(t *testing.T) {
 
 	var stdout bytes.Buffer
 	command := NewRootCommand(&stdout, &bytes.Buffer{})
-	command.SetIn(strings.NewReader("\n"))
+	command.SetIn(strings.NewReader("q"))
 	command.SetArgs([]string{"pick", workspace})
 
 	if err := command.Execute(); err != nil {
@@ -49,19 +49,6 @@ func TestPickCommandCancellation(t *testing.T) {
 	}
 	if stdout.Len() != 0 {
 		t.Fatalf("stdout = %q, want empty", stdout.String())
-	}
-}
-
-func TestPickCommandRejectsInvalidSelection(t *testing.T) {
-	workspace := t.TempDir()
-	createCLIProject(t, workspace, "app", "go.mod")
-
-	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
-	command.SetIn(strings.NewReader("2\n"))
-	command.SetArgs([]string{"pick", workspace})
-
-	if err := command.Execute(); err == nil {
-		t.Fatal("Execute() error = nil, want invalid selection error")
 	}
 }
 
