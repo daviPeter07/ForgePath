@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -87,6 +88,36 @@ func TestScanPropagatesProjectMetadata(t *testing.T) {
 	}
 }
 
+func TestScanIncludesGitStatus(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	workspace := t.TempDir()
+	dir := filepath.Join(workspace, "repository")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runScannerGit(t, dir, "init", "-b", "main")
+	runScannerGit(t, dir, "config", "user.name", "ForgePath Tests")
+	runScannerGit(t, dir, "config", "user.email", "forgepath@example.com")
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/app"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runScannerGit(t, dir, "add", "go.mod")
+	runScannerGit(t, dir, "commit", "-m", "initial")
+	if err := os.WriteFile(filepath.Join(dir, "change.txt"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	projects, err := Scan(workspace)
+	if err != nil {
+		t.Fatalf("Scan() error = %v", err)
+	}
+	if len(projects) != 1 || projects[0].GitBranch != "main" || !projects[0].GitDirty || !projects[0].GitStatusKnown {
+		t.Fatalf("Scan() = %+v, want dirty main repository", projects)
+	}
+}
+
 func TestScanRejectsInvalidWorkspace(t *testing.T) {
 	t.Run("missing", func(t *testing.T) {
 		_, err := Scan(filepath.Join(t.TempDir(), "missing"))
@@ -117,5 +148,13 @@ func createProject(t *testing.T, workspace, name string, markers ...string) {
 		if err := os.WriteFile(filepath.Join(dir, marker), nil, 0o644); err != nil {
 			t.Fatalf("create marker %q: %v", marker, err)
 		}
+	}
+}
+
+func runScannerGit(t *testing.T, dir string, arguments ...string) {
+	t.Helper()
+	args := append([]string{"-C", dir}, arguments...)
+	if output, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", arguments, err, output)
 	}
 }

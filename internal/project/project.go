@@ -49,4 +49,7 @@ type Project struct {
 	Frameworks      []Framework
 	PackageManagers []PackageManager
 	HasDocker       bool
+	GitBranch       string
+	GitDirty        bool
+	GitStatusKnown  bool
 }

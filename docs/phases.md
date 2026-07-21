@@ -485,8 +485,8 @@ Enriquecer a apresentação dos projetos sem comprometer o núcleo já testado.
 - [x] Detectar frameworks
 - [x] Detectar gerenciadores de pacotes
 - [x] Detectar Docker
-- [ ] Mostrar branch atual do Git
-- [ ] Mostrar alterações não commitadas
+- [x] Mostrar branch atual do Git
+- [x] Mostrar alterações não commitadas
 - [ ] Adicionar ícones Nerd Font
 - [ ] Criar fallback sem ícones
 - [ ] Abrir projeto no editor
