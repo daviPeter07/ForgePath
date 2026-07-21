@@ -27,7 +27,17 @@ func (item projectItem) Title() string {
 }
 
 func (item projectItem) Description() string {
-	return fmt.Sprintf("%s | %s", item.project.Technology, strings.Join(item.project.Markers, ", "))
+	details := []string{string(item.project.Technology)}
+	for _, framework := range item.project.Frameworks {
+		details = append(details, string(framework))
+	}
+	for _, manager := range item.project.PackageManagers {
+		details = append(details, string(manager))
+	}
+	if item.project.HasDocker && item.project.Technology != project.TechnologyDocker {
+		details = append(details, "Docker")
+	}
+	return strings.Join(details, " | ")
 }
 
 func (item projectItem) FilterValue() string {

@@ -27,6 +27,7 @@ func TestDetectTechnologies(t *testing.T) {
 		{name: "Python with Pipfile", files: []string{"Pipfile"}, technology: project.TechnologyPython, markers: []string{"Pipfile"}},
 		{name: "TypeScript", files: []string{"package.json", "tsconfig.json"}, technology: project.TechnologyTypeScript, markers: []string{"package.json", "tsconfig.json"}},
 		{name: "JavaScript", files: []string{"package.json"}, technology: project.TechnologyJavaScript, markers: []string{"package.json"}},
+		{name: "Docker", files: []string{"Dockerfile"}, technology: project.TechnologyDocker, markers: []string{"Dockerfile"}},
 	}
 
 	for _, tt := range tests {
