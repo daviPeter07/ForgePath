@@ -491,8 +491,8 @@ Enriquecer a apresentação dos projetos sem comprometer o núcleo já testado.
 - [x] Criar fallback sem ícones
 - [x] Abrir projeto no editor
 - [x] Abrir pasta no gerenciador de arquivos
-- [ ] Executar comandos de desenvolvimento
-- [ ] Adicionar configuração persistente
+- [x] Executar comandos de desenvolvimento
+- [x] Adicionar configuração persistente
 - [ ] Adicionar favoritos
 - [ ] Adicionar projetos recentes
 - [ ] Criar cache de projetos
