@@ -28,31 +28,7 @@ func newPickCommandWithScanner(scan scanProjectsFunc, statePaths ...statePathFun
 			if err != nil {
 				return err
 			}
-			workspace, err := workspaceFrom(args)
-			if err != nil {
-				return err
-			}
-			projects, err := scanProjects(cmd, scan, workspace, refresh)
-			if err != nil {
-				return err
-			}
-			decorateProjectsBestEffort(cmd, statePath, projects)
-			if len(projects) == 0 {
-				return fmt.Errorf("no projects found in %q", workspace)
-			}
-
-			selected, found, err := tui.Select(cmd.Context(), projects, icons, cmd.InOrStdin(), cmd.ErrOrStderr())
-			if err != nil {
-				return err
-			}
-			if !found {
-				return nil
-			}
-			if _, err = fmt.Fprintln(cmd.OutOrStdout(), selected.Path); err != nil {
-				return err
-			}
-			recordRecentBestEffort(cmd, statePath, selected.Path)
-			return nil
+			return runPicker(cmd, args, icons, refresh, scan, statePath)
 		},
 	}
 	command.Flags().Bool("print-path", false, "print only the selected project path")
@@ -60,4 +36,32 @@ func newPickCommandWithScanner(scan scanProjectsFunc, statePaths ...statePathFun
 	command.Flags().BoolVar(&refresh, "refresh", false, "ignore and rebuild the project cache")
 
 	return command
+}
+
+func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool, scan scanProjectsFunc, statePath statePathFunc) error {
+	workspace, err := workspaceFrom(args)
+	if err != nil {
+		return err
+	}
+	projects, err := scanProjects(cmd, scan, workspace, refresh)
+	if err != nil {
+		return err
+	}
+	decorateProjectsBestEffort(cmd, statePath, projects)
+	if len(projects) == 0 {
+		return fmt.Errorf("no projects found in %q", workspace)
+	}
+
+	selected, found, err := tui.Select(cmd.Context(), projects, icons, cmd.InOrStdin(), cmd.ErrOrStderr())
+	if err != nil {
+		return err
+	}
+	if !found {
+		return nil
+	}
+	if _, err = fmt.Fprintln(cmd.OutOrStdout(), selected.Path); err != nil {
+		return err
+	}
+	recordRecentBestEffort(cmd, statePath, selected.Path)
+	return nil
 }

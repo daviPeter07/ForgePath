@@ -7,28 +7,30 @@ import (
 
 	"github.com/daviPeter07/forgepath/internal/action"
 	"github.com/daviPeter07/forgepath/internal/catalog"
+	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/spf13/cobra"
 )
 
 func NewRootCommand(out, errOut io.Writer) *cobra.Command {
-	var configuredPath string
-	var configuredStatePath string
+	configuredPath := os.Getenv("FORGEPATH_CONFIG")
+	configuredStatePath := os.Getenv("FORGEPATH_STATE")
 	configuredCachePath := os.Getenv("FORGEPATH_CACHE")
+	var rootIconMode string
+	var rootRefresh bool
 	command := &cobra.Command{
 		Use:           "forgepath",
 		Short:         "Discover software projects in a workspace",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Help()
-		},
 	}
 	command.SetOut(out)
 	command.SetErr(errOut)
-	command.PersistentFlags().StringVar(&configuredPath, "config", "", "configuration file path")
-	command.PersistentFlags().StringVar(&configuredStatePath, "state", "", "state file path")
+	command.PersistentFlags().StringVar(&configuredPath, "config", configuredPath, "configuration file path")
+	command.PersistentFlags().StringVar(&configuredStatePath, "state", configuredStatePath, "state file path")
 	command.PersistentFlags().StringVar(&configuredCachePath, "cache", configuredCachePath, "project cache directory")
+	command.Flags().StringVar(&rootIconMode, "icons", string(icon.ModeASCII), "icon mode: ascii or nerd-font")
+	command.Flags().BoolVar(&rootRefresh, "refresh", false, "ignore and rebuild the project cache")
 	configPath := func() (string, error) {
 		return resolveConfigPath(configuredPath)
 	}
@@ -46,6 +48,13 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 			return result, scanErr
 		}
 		return (catalog.Store{Directory: path}).Scan(workspace, refresh)
+	}
+	command.RunE = func(cmd *cobra.Command, _ []string) error {
+		icons, err := icon.ParseMode(rootIconMode)
+		if err != nil {
+			return err
+		}
+		return runPicker(cmd, nil, icons, rootRefresh, scan, statePath)
 	}
 	command.AddCommand(newListCommandWithScanner(scan, statePath))
 	command.AddCommand(newPickCommandWithScanner(scan, statePath))
