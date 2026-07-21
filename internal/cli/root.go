@@ -20,6 +20,7 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	command.SetOut(out)
 	command.SetErr(errOut)
 	command.AddCommand(newListCommand())
+	command.AddCommand(newPickCommand())
 
 	return command
 }

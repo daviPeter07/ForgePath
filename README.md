@@ -275,6 +275,12 @@ forgepath pick --print-path
 
 Select a project and print only its directory path.
 
+The selector uses portable ASCII labels by default. Enable technology icons in a Nerd Font terminal with:
+
+```bash
+forgepath pick --icons nerd-font
+```
+
 ```bash
 forgepath open <project>
 ```
@@ -307,9 +313,23 @@ The intended PowerShell integration is:
 
 ```powershell
 function fp {
-    $target = & forgepath pick --print-path
+    $previousOutputEncoding = [Console]::OutputEncoding
 
-    if ($LASTEXITCODE -eq 0 -and $target) {
+    try {
+        [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+        $target = & forgepath pick --print-path @args
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        [Console]::OutputEncoding = $previousOutputEncoding
+    }
+
+    if ($exitCode -ne 0) {
+        Write-Error "forgepath pick failed with exit code $exitCode"
+        return
+    }
+
+    if ($target) {
         Set-Location -LiteralPath $target
     }
 }
@@ -327,8 +347,13 @@ ForgePath opens the project selector and navigates the current terminal to the s
 
 ```bash
 fp() {
-    local target
-    target="$(forgepath pick --print-path)"
+    local target status
+    target="$(forgepath pick --print-path "$@")"
+    status=$?
+
+    if [ "$status" -ne 0 ]; then
+        return "$status"
+    fi
 
     if [ -n "$target" ]; then
         cd -- "$target"
@@ -340,10 +365,10 @@ fp() {
 
 ### Requirements
 
-* Go 1.24 or newer
+* Go 1.25 or newer
 * Git
 * A terminal with ANSI color support
-* A Nerd Font for language and tool icons
+* Optional: a Nerd Font for language and tool icons
 
 ### Clone the repository
 

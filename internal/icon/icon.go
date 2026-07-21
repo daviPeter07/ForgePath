@@ -1,0 +1,53 @@
+package icon
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/daviPeter07/forgepath/internal/project"
+)
+
+type Mode string
+
+const (
+	ModeASCII    Mode = "ascii"
+	ModeNerdFont Mode = "nerd-font"
+)
+
+var asciiLabels = map[project.Technology]string{
+	project.TechnologyTypeScript: "[TS]",
+	project.TechnologyJavaScript: "[JS]",
+	project.TechnologyPython:     "[PY]",
+	project.TechnologyGo:         "[GO]",
+	project.TechnologyJava:       "[JV]",
+	project.TechnologyPHP:        "[PHP]",
+	project.TechnologyDocker:     "[DK]",
+}
+
+var nerdFontLabels = map[project.Technology]string{
+	project.TechnologyTypeScript: "",
+	project.TechnologyJavaScript: "",
+	project.TechnologyPython:     "",
+	project.TechnologyGo:         "",
+	project.TechnologyJava:       "",
+	project.TechnologyPHP:        "",
+	project.TechnologyDocker:     "",
+}
+
+func ParseMode(value string) (Mode, error) {
+	switch Mode(strings.ToLower(strings.TrimSpace(value))) {
+	case ModeASCII:
+		return ModeASCII, nil
+	case ModeNerdFont:
+		return ModeNerdFont, nil
+	default:
+		return "", fmt.Errorf("invalid icon mode %q: use ascii or nerd-font", value)
+	}
+}
+
+func Label(technology project.Technology, mode Mode) string {
+	if mode == ModeNerdFont {
+		return nerdFontLabels[technology]
+	}
+	return asciiLabels[technology]
+}

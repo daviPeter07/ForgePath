@@ -406,12 +406,12 @@ Permitir que o usuário selecione um projeto e navegue até a pasta no terminal 
 
 ### Tarefas
 
-- [ ] Criar um comando que imprima apenas o caminho selecionado
-- [ ] Separar a saída visual da saída utilizada pelo shell
-- [ ] Criar função para PowerShell
-- [ ] Criar função para Bash
-- [ ] Testar caminhos com espaços
-- [ ] Tratar cancelamento da seleção
+- [x] Criar um comando que imprima apenas o caminho selecionado
+- [x] Separar a saída visual da saída utilizada pelo shell
+- [x] Criar função para PowerShell
+- [x] Criar função para Bash
+- [x] Testar caminhos com espaços
+- [x] Tratar cancelamento da seleção
 
 ### Exemplo de uso esperado
 
@@ -448,15 +448,15 @@ Substituir a listagem simples por uma TUI navegável.
 
 ### Tarefas
 
-- [ ] Criar o modelo inicial da TUI
-- [ ] Carregar os projetos encontrados pelo scanner
-- [ ] Implementar navegação pelo teclado
-- [ ] Implementar seleção com Enter
-- [ ] Implementar pesquisa
-- [ ] Implementar ajuda de atalhos
-- [ ] Tratar redimensionamento do terminal
-- [ ] Separar apresentação e regras de negócio
-- [ ] Manter detector e scanner independentes da TUI
+- [x] Criar o modelo inicial da TUI
+- [x] Carregar os projetos encontrados pelo scanner
+- [x] Implementar navegação pelo teclado
+- [x] Implementar seleção com Enter
+- [x] Implementar pesquisa
+- [x] Implementar ajuda de atalhos
+- [x] Tratar redimensionamento do terminal
+- [x] Separar apresentação e regras de negócio
+- [x] Manter detector e scanner independentes da TUI
 
 ### Conceitos de Go estudados
 
@@ -482,13 +482,13 @@ Enriquecer a apresentação dos projetos sem comprometer o núcleo já testado.
 
 ### Funcionalidades futuras
 
-- [ ] Detectar frameworks
-- [ ] Detectar gerenciadores de pacotes
-- [ ] Detectar Docker
-- [ ] Mostrar branch atual do Git
-- [ ] Mostrar alterações não commitadas
-- [ ] Adicionar ícones Nerd Font
-- [ ] Criar fallback sem ícones
+- [x] Detectar frameworks
+- [x] Detectar gerenciadores de pacotes
+- [x] Detectar Docker
+- [x] Mostrar branch atual do Git
+- [x] Mostrar alterações não commitadas
+- [x] Adicionar ícones Nerd Font
+- [x] Criar fallback sem ícones
 - [ ] Abrir projeto no editor
 - [ ] Abrir pasta no gerenciador de arquivos
 - [ ] Executar comandos de desenvolvimento
@@ -536,6 +536,6 @@ Em todas as fases:
 - [x] Fase 5 — Generalização da detecção
 - [x] Fase 6 — Scanner de workspaces
 - [x] Fase 7 — Interface por linha de comando
-- [ ] Fase 8 — Integração com o shell
-- [ ] Fase 9 — Interface interativa no terminal
+- [x] Fase 8 — Integração com o shell
+- [x] Fase 9 — Interface interativa no terminal
 - [ ] Fase 10 — Metadados e recursos adicionais

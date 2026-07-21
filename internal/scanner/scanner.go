@@ -1,13 +1,17 @@
 package scanner
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/daviPeter07/forgepath/internal/detector"
+	gitinfo "github.com/daviPeter07/forgepath/internal/git"
 	"github.com/daviPeter07/forgepath/internal/project"
 )
 
@@ -54,19 +58,51 @@ func Scan(workspace string) ([]project.Project, error) {
 			continue
 		}
 
-		projects = append(projects, project.Project{
-			Name:       entry.Name(),
-			Path:       path,
-			Technology: result.Technology,
-			Markers:    result.Markers,
-		})
+		foundProject := project.Project{
+			Name:            entry.Name(),
+			Path:            path,
+			Technology:      result.Technology,
+			Markers:         result.Markers,
+			Frameworks:      result.Frameworks,
+			PackageManagers: result.PackageManagers,
+			HasDocker:       result.HasDocker,
+		}
+		projects = append(projects, foundProject)
 	}
+	enrichWithGit(projects)
 
 	sort.Slice(projects, func(i, j int) bool {
 		return projects[i].Name < projects[j].Name
 	})
 
 	return projects, nil
+}
+
+func enrichWithGit(projects []project.Project) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var waitGroup sync.WaitGroup
+	limit := make(chan struct{}, 8)
+	for index := range projects {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			select {
+			case limit <- struct{}{}:
+				defer func() { <-limit }()
+			case <-ctx.Done():
+				return
+			}
+
+			if info, repository := gitinfo.InspectContext(ctx, projects[index].Path); repository {
+				projects[index].GitBranch = info.Branch
+				projects[index].GitDirty = info.Dirty
+				projects[index].GitStatusKnown = info.StatusKnown
+			}
+		}()
+	}
+	waitGroup.Wait()
 }
 
 func shouldIgnore(name string) bool {
