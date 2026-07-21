@@ -25,7 +25,15 @@ type projectItem struct {
 }
 
 func (item projectItem) Title() string {
-	return icon.Label(item.project.Technology, item.icons) + " " + item.project.Name
+	prefix := icon.Label(item.project.Technology, item.icons)
+	if item.project.Favorite {
+		if item.icons == icon.ModeNerdFont {
+			prefix = " " + prefix
+		} else {
+			prefix = "[F] " + prefix
+		}
+	}
+	return prefix + " " + item.project.Name
 }
 
 func (item projectItem) Description() string {

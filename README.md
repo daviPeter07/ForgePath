@@ -302,6 +302,15 @@ Create an initial configuration file.
 Use `--config <path>` with any command to override the default configuration path.
 
 ```bash
+forgepath favorite add <project> [workspace]
+forgepath favorite remove <project> [workspace]
+forgepath favorite list
+forgepath recent
+```
+
+Favorites are shown first in the selector, followed by recently used projects. Use `--state <path>` to override the state file location.
+
+```bash
 forgepath completion powershell
 ```
 

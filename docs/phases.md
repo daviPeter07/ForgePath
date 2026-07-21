@@ -493,8 +493,8 @@ Enriquecer a apresentação dos projetos sem comprometer o núcleo já testado.
 - [x] Abrir pasta no gerenciador de arquivos
 - [x] Executar comandos de desenvolvimento
 - [x] Adicionar configuração persistente
-- [ ] Adicionar favoritos
-- [ ] Adicionar projetos recentes
+- [x] Adicionar favoritos
+- [x] Adicionar projetos recentes
 - [ ] Criar cache de projetos
 
 ### Regra de evolução
