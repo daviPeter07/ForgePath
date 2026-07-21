@@ -37,6 +37,15 @@ func (item projectItem) Description() string {
 	if item.project.HasDocker && item.project.Technology != project.TechnologyDocker {
 		details = append(details, "Docker")
 	}
+	if item.project.GitBranch != "" {
+		branch := item.project.GitBranch
+		if !item.project.GitStatusKnown {
+			branch += "?"
+		} else if item.project.GitDirty {
+			branch += "*"
+		}
+		details = append(details, branch)
+	}
 	return strings.Join(details, " | ")
 }
 

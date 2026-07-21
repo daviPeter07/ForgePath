@@ -119,11 +119,25 @@ func TestProjectItemDescriptionIncludesMetadata(t *testing.T) {
 		Frameworks:      []project.Framework{project.FrameworkLaravel, project.FrameworkVue},
 		PackageManagers: []project.PackageManager{project.PackageManagerComposer, project.PackageManagerPNPM},
 		HasDocker:       true,
+		GitBranch:       "main",
+		GitDirty:        true,
+		GitStatusKnown:  true,
 	}}
 
-	want := "PHP | Laravel | Vue.js | Composer | pnpm | Docker"
+	want := "PHP | Laravel | Vue.js | Composer | pnpm | Docker | main*"
 	if item.Description() != want {
 		t.Fatalf("Description() = %q, want %q", item.Description(), want)
+	}
+}
+
+func TestProjectItemDescriptionMarksUnknownGitStatus(t *testing.T) {
+	item := projectItem{project: project.Project{
+		Technology: project.TechnologyGo,
+		GitBranch:  "main",
+	}}
+
+	if item.Description() != "Go | main?" {
+		t.Fatalf("Description() = %q, want %q", item.Description(), "Go | main?")
 	}
 }
 
