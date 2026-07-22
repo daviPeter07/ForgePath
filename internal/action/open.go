@@ -7,14 +7,17 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 )
 
 func OpenEditor(ctx context.Context, path, editor string) error {
+	return OpenEditorWithArguments(ctx, path, editor, nil)
+}
+
+func OpenEditorWithArguments(ctx context.Context, path, editor string, arguments []string) error {
 	if editor == "" {
 		return fmt.Errorf("editor executable cannot be empty")
 	}
-	command, err := editorCommand(runtime.GOOS, editor, path)
+	command, err := editorCommandWithArguments(runtime.GOOS, editor, arguments, path)
 	if err != nil {
 		return err
 	}
@@ -43,11 +46,16 @@ func folderCommand(goos, path string) (string, []string, error) {
 }
 
 func editorCommand(goos, editor, path string) (*exec.Cmd, error) {
+	return editorCommandWithArguments(goos, editor, nil, path)
+}
+
+func editorCommandWithArguments(goos, editor string, arguments []string, path string) (*exec.Cmd, error) {
 	executable, err := safeExecutable(goos, editor)
 	if err != nil {
 		return nil, err
 	}
-	return exec.Command(executable, path), nil
+	arguments = append(append([]string(nil), arguments...), path)
+	return exec.Command(executable, arguments...), nil
 }
 
 func safeExecutable(goos, executable string) (string, error) {
@@ -75,25 +83,9 @@ func startEditor(ctx context.Context, command *exec.Cmd) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	prepareCommand(command, false)
 	if err := command.Start(); err != nil {
 		return err
 	}
-
-	finished := make(chan error, 1)
-	go func() {
-		finished <- command.Wait()
-	}()
-
-	timer := time.NewTimer(250 * time.Millisecond)
-	defer timer.Stop()
-	select {
-	case err := <-finished:
-		return err
-	case <-ctx.Done():
-		_ = command.Process.Kill()
-		<-finished
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
+	return command.Process.Release()
 }

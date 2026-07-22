@@ -2,8 +2,10 @@ package action
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -49,13 +51,29 @@ func TestEditorCommandRejectsWindowsBatchLauncher(t *testing.T) {
 	}
 }
 
-func TestOpenEditorReportsImmediateFailure(t *testing.T) {
+func TestEditorCommandIncludesEditorArgumentsBeforePath(t *testing.T) {
+	goExecutable, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	command, err := editorCommandWithArguments(runtime.GOOS, goExecutable, []string{"tool"}, "project")
+	if err != nil {
+		t.Fatalf("editorCommandWithArguments() error = %v", err)
+	}
+	if len(command.Args) < 3 || command.Args[len(command.Args)-2] != "tool" || command.Args[len(command.Args)-1] != "project" {
+		t.Fatalf("command args = %q, want editor args before project path", command.Args)
+	}
+}
+
+func TestOpenEditorHonorsCancelledContext(t *testing.T) {
 	goExecutable, err := exec.LookPath("go")
 	if err != nil {
 		t.Skip("go executable is not available")
 	}
 
-	if err := OpenEditor(context.Background(), "not-a-go-command", goExecutable); err == nil {
-		t.Fatal("OpenEditor() error = nil, want editor process error")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := OpenEditor(ctx, "project", goExecutable); !errors.Is(err, context.Canceled) {
+		t.Fatalf("OpenEditor() error = %v, want context cancellation", err)
 	}
 }
