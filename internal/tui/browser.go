@@ -25,6 +25,7 @@ const (
 	projectScreen screenMode = iota
 	directoryScreen
 	editorScreen
+	dockerScreen
 )
 
 type Directory struct {
@@ -203,6 +204,8 @@ func (m *Model) enterSelected() (tea.Cmd, error) {
 		return m.showDirectory(item.directory.Path)
 	case editorItem:
 		return m.openSelectedEditor(item), nil
+	case dockerItem:
+		return m.generateDockerCompose(item), nil
 	default:
 		return nil, nil
 	}
@@ -210,7 +213,7 @@ func (m *Model) enterSelected() (tea.Cmd, error) {
 
 func (m *Model) goBack() (tea.Cmd, error) {
 	switch m.mode {
-	case editorScreen:
+	case editorScreen, dockerScreen:
 		m.editorRequest++
 		m.editorOpening = false
 		if m.returnMode == projectScreen {
@@ -248,7 +251,7 @@ func (m *Model) showEditors() tea.Cmd {
 	}
 	ranked := ide.Rank(m.options.IDEs, selectedProject.Technology)
 	if len(ranked) == 0 {
-		return m.list.NewStatusMessage("No supported IDE was found on this machine")
+		return m.newErrorMessage(fmt.Errorf("no supported IDE was found on this machine"))
 	}
 	m.returnMode = m.mode
 	m.editorPath = path
@@ -267,7 +270,7 @@ func (m *Model) showEditors() tea.Cmd {
 
 func (m *Model) openSelectedEditor(item editorItem) tea.Cmd {
 	if m.options.OpenEditor == nil {
-		return m.list.NewStatusMessage("Editor launching is unavailable")
+		return m.newErrorMessage(fmt.Errorf("editor launching is unavailable"))
 	}
 	if m.editorOpening {
 		return m.list.NewStatusMessage("Waiting for the editor to start…")

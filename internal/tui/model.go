@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -31,6 +32,11 @@ var chooseKey = key.NewBinding(
 var editorKey = key.NewBinding(
 	key.WithKeys("o"),
 	key.WithHelp("o", "open IDE"),
+)
+
+var dockerKey = key.NewBinding(
+	key.WithKeys("d"),
+	key.WithHelp("d", "docker compose"),
 )
 
 var backKey = key.NewBinding(
@@ -81,6 +87,9 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 		return
 	case editorItem:
 		renderEditorItem(writer, model, index, item)
+		return
+	case dockerItem:
+		renderDockerItem(writer, model, index, item)
 		return
 	}
 	item, ok := raw.(projectItem)
@@ -301,11 +310,12 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 		Bold(true).
 		Foreground(palette.bright)
 	projectList.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{selectKey, chooseKey, editorKey, backKey}
+		return []key.Binding{selectKey, chooseKey, editorKey, dockerKey, backKey}
 	}
 	projectList.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{selectKey, chooseKey, editorKey, backKey}
+		return []key.Binding{selectKey, chooseKey, editorKey, dockerKey, backKey}
 	}
+	projectList.StatusMessageLifetime = 5 * time.Second
 
 	model := Model{list: projectList, projects: append([]project.Project(nil), projects...), options: options}
 	if len(projects) == 0 && options.StartPath != "" {
@@ -364,7 +374,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			command, _ = m.showDirectory(m.currentPath)
 		}
 		if message.err != nil {
-			return m, tea.Batch(command, m.list.NewStatusMessage(safeTerminalText("Could not open "+message.editor+": "+message.err.Error())))
+			return m, tea.Batch(command, m.newErrorMessage(fmt.Errorf("could not open %s: %w", message.editor, message.err)))
 		}
 		return m, tea.Batch(command, m.list.NewStatusMessage(safeTerminalText("Opened "+filepath.Base(message.path)+" in "+message.editor)))
 	case tea.KeyPressMsg:
@@ -379,11 +389,15 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			command, err := m.enterSelected()
 			if err != nil {
-				return m, m.list.NewStatusMessage(safeTerminalText("Could not browse directory: " + err.Error()))
+				return m, m.newErrorMessage(fmt.Errorf("could not browse directory: %w", err))
 			}
 			return m, command
 		case "c":
 			return m, m.confirmCurrentDirectory()
+		case "d":
+			if m.mode != dockerScreen {
+				return m, m.showDocker()
+			}
 		case "o":
 			if m.mode != editorScreen {
 				return m, m.showEditors()
@@ -391,7 +405,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "backspace", "left":
 			command, err := m.goBack()
 			if err != nil {
-				return m, m.list.NewStatusMessage(safeTerminalText("Could not go back: " + err.Error()))
+				return m, m.newErrorMessage(fmt.Errorf("could not go back: %w", err))
 			}
 			return m, command
 		case "q":
@@ -401,7 +415,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.list.IsFiltered() && m.mode != projectScreen {
 				command, err := m.goBack()
 				if err != nil {
-					return m, m.list.NewStatusMessage(safeTerminalText("Could not go back: " + err.Error()))
+					return m, m.newErrorMessage(fmt.Errorf("could not go back: %w", err))
 				}
 				return m, command
 			}
@@ -430,6 +444,17 @@ func (m Model) Selection() (project.Project, bool) {
 
 func (m Model) Cancelled() bool {
 	return m.cancelled
+}
+
+func (m Model) newErrorMessage(err error) tea.Cmd {
+	msg := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#17111F")).
+		Background(lipgloss.Color("#EF4444")). // Red background
+		Padding(0, 1).
+		Render("ERROR") + " " +
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#EF4444")).Render(err.Error())
+	return m.list.NewStatusMessage(msg)
 }
 
 func Select(ctx context.Context, projects []project.Project, icons icon.Mode, input io.Reader, output io.Writer) (project.Project, bool, error) {
