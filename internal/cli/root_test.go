@@ -91,7 +91,7 @@ func TestRootCommandOpensSelector(t *testing.T) {
 
 	var stdout bytes.Buffer
 	command := NewRootCommand(&stdout, &bytes.Buffer{})
-	command.SetIn(strings.NewReader("\r"))
+	command.SetIn(strings.NewReader("c"))
 	command.SetArgs([]string{"--icons", "nerd-font", "--refresh"})
 
 	if err := command.Execute(); err != nil {

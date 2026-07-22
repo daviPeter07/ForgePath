@@ -259,6 +259,47 @@ func TestPortableViewDoesNotRequireNerdFont(t *testing.T) {
 	}
 }
 
+func TestGraphicViewRendersEmbeddedTechnologyLogo(t *testing.T) {
+	model := NewModel([]project.Project{{Name: "api", Technology: project.TechnologyGo}}, icon.ModeGraphics)
+	view := model.View().Content
+	if !strings.Contains(view, "38;2;") || !strings.Contains(view, "api") {
+		t.Fatalf("graphic View() missing ANSI logo or project name: %q", view)
+	}
+	if height := (projectDelegate{graphics: true}).Height(); height != 4 {
+		t.Fatalf("graphic delegate height = %d, want 4", height)
+	}
+}
+
+func TestGraphicProjectDelegateDoesNotWrapLongRows(t *testing.T) {
+	item := projectItem{project: project.Project{
+		Name:       strings.Repeat("long-project-name-", 8),
+		Technology: project.TechnologyTypeScript,
+		Frameworks: []project.Framework{project.FrameworkNextJS, project.FrameworkReact, project.FrameworkVue},
+	}, icons: icon.ModeGraphics}
+	model := list.New([]list.Item{item}, projectDelegate{graphics: true}, 24, 12)
+	var output bytes.Buffer
+	(projectDelegate{graphics: true}).Render(&output, model, 0, item)
+	if width, height := lipgloss.Width(output.String()), lipgloss.Height(output.String()); width > 20 || height > 4 {
+		t.Fatalf("graphic item size = %dx%d, want at most 20x4: %q", width, height, output.String())
+	}
+	if !strings.Contains(output.String(), "long-") {
+		t.Fatalf("graphic item clipped the project name: %q", output.String())
+	}
+}
+
+func TestGraphicProjectDelegateFallsBackInNarrowTerminal(t *testing.T) {
+	item := projectItem{project: project.Project{Name: "api", Technology: project.TechnologyGo}, icons: icon.ModeGraphics}
+	model := list.New([]list.Item{item}, projectDelegate{graphics: true}, 14, 10)
+	var output bytes.Buffer
+	(projectDelegate{graphics: true}).Render(&output, model, 0, item)
+	if height := lipgloss.Height(output.String()); height > 2 {
+		t.Fatalf("narrow fallback height = %d, want text fallback", height)
+	}
+	if !strings.Contains(output.String(), "api") {
+		t.Fatalf("narrow fallback hid the project name: %q", output.String())
+	}
+}
+
 func TestModelOnlyRendersProjectsVisibleInViewport(t *testing.T) {
 	projects := make([]project.Project, 40)
 	for index := range projects {

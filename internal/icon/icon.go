@@ -10,6 +10,8 @@ import (
 type Mode string
 
 const (
+	ModeAuto     Mode = "auto"
+	ModeGraphics Mode = "graphics"
 	ModeASCII    Mode = "ascii"
 	ModeNerdFont Mode = "nerd-font"
 )
@@ -44,12 +46,16 @@ var nerdFontLabels = map[project.Technology]string{
 
 func ParseMode(value string) (Mode, error) {
 	switch Mode(strings.ToLower(strings.TrimSpace(value))) {
+	case ModeAuto:
+		return ModeAuto, nil
+	case ModeGraphics:
+		return ModeGraphics, nil
 	case ModeASCII:
 		return ModeASCII, nil
 	case ModeNerdFont:
 		return ModeNerdFont, nil
 	default:
-		return "", fmt.Errorf("invalid icon mode %q: use ascii or nerd-font", value)
+		return "", fmt.Errorf("invalid icon mode %q: use auto, graphics, ascii, or nerd-font", value)
 	}
 }
 

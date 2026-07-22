@@ -58,15 +58,22 @@ type projectItem struct {
 	icons   icon.Mode
 }
 
-type projectDelegate struct{}
+type projectDelegate struct {
+	graphics bool
+}
 
-func (projectDelegate) Height() int  { return 2 }
+func (delegate projectDelegate) Height() int {
+	if delegate.graphics {
+		return 4
+	}
+	return 2
+}
 func (projectDelegate) Spacing() int { return 1 }
 func (projectDelegate) Update(tea.Msg, *list.Model) tea.Cmd {
 	return nil
 }
 
-func (projectDelegate) Render(writer io.Writer, model list.Model, index int, raw list.Item) {
+func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index int, raw list.Item) {
 	switch item := raw.(type) {
 	case directoryItem:
 		renderDirectoryItem(writer, model, index, item)
@@ -79,13 +86,19 @@ func (projectDelegate) Render(writer io.Writer, model list.Model, index int, raw
 	if !ok {
 		return
 	}
+	if delegate.graphics && model.Width() >= 20 {
+		if graphic, err := icon.Graphic(item.project.Technology); err == nil {
+			renderGraphicProjectItem(writer, model, index, item, graphic)
+			return
+		}
+	}
 
 	iconLabel := icon.Label(item.project.Technology, item.icons)
 	if iconLabel == "" {
 		iconLabel = "◆"
 	}
 	iconStyle := lipgloss.NewStyle().Bold(true).Foreground(technologyColor(item.project.Technology))
-	if item.icons == icon.ModeASCII {
+	if item.icons != icon.ModeNerdFont {
 		iconStyle = iconStyle.
 			Foreground(technologyBadgeTextColor(item.project.Technology)).
 			Background(technologyColor(item.project.Technology)).
@@ -94,7 +107,11 @@ func (projectDelegate) Render(writer io.Writer, model list.Model, index int, raw
 	nameStyle := lipgloss.NewStyle().Bold(true).Foreground(palette.text)
 	metaStyle := lipgloss.NewStyle().Foreground(palette.muted)
 
-	title := iconStyle.Render(iconLabel) + "  " + nameStyle.Render(safeTerminalText(item.project.Name))
+	compact := model.Width() < 20
+	title := nameStyle.Render(safeTerminalText(item.project.Name))
+	if !compact {
+		title = iconStyle.Render(iconLabel) + "  " + title
+	}
 	if item.project.Favorite {
 		title = lipgloss.NewStyle().Foreground(palette.favorite).Render("★") + "  " + title
 	}
@@ -118,13 +135,61 @@ func (projectDelegate) Render(writer io.Writer, model list.Model, index int, raw
 		container = container.
 			Bold(true).
 			Foreground(palette.bright).
-			Background(palette.surface).
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderLeft(true).
 			BorderForeground(palette.primary).
 			PaddingLeft(1)
 	}
 	_, _ = fmt.Fprint(writer, container.Render(content))
+}
+
+func renderGraphicProjectItem(writer io.Writer, model list.Model, index int, item projectItem, graphic string) {
+	name := safeTerminalText(item.project.Name)
+	if item.project.Favorite {
+		name = "★  " + name
+	}
+	description := item.Description()
+	if parent := filepath.Base(filepath.Dir(item.project.Path)); parent != "." && parent != "" {
+		description += "  ·  " + parent
+	}
+	description = safeTerminalText(description)
+
+	outerWidth := model.Width() - 4
+	if outerWidth < 1 {
+		outerWidth = 1
+	}
+	innerWidth := outerWidth - 1
+	if innerWidth < 1 {
+		innerWidth = 1
+	}
+	textWidth := innerWidth - 10
+	if textWidth < 1 {
+		textWidth = 1
+	}
+	name = ansi.Truncate(name, textWidth, "…")
+	description = ansi.Truncate(description, textWidth, "…")
+	text := lipgloss.NewStyle().Bold(true).Foreground(palette.text).Render(name) + "\n" +
+		lipgloss.NewStyle().Foreground(palette.muted).Render(description)
+	if index == model.Index() {
+		nameLine := lipgloss.NewStyle().Bold(true).Foreground(palette.text).Background(palette.surface).Width(textWidth).Render(name)
+		descriptionLine := lipgloss.NewStyle().Foreground(palette.muted).Background(palette.surface).Width(textWidth).Render(description)
+		blankLine := lipgloss.NewStyle().Background(palette.surface).Width(textWidth).Render("")
+		text = nameLine + "\n" + descriptionLine + "\n" + blankLine + "\n" + blankLine
+	}
+	content := lipgloss.JoinHorizontal(lipgloss.Top, graphic, "  ", text)
+	container := lipgloss.NewStyle().Width(innerWidth).MaxWidth(innerWidth).MaxHeight(4)
+	if index == model.Index() {
+		container = lipgloss.NewStyle().
+			Width(outerWidth).
+			MaxWidth(outerWidth).
+			MaxHeight(4).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderLeft(true).
+			BorderForeground(palette.primary)
+		_, _ = fmt.Fprint(writer, container.Render(content))
+		return
+	}
+	_, _ = fmt.Fprint(writer, " "+container.Render(content))
 }
 
 func technologyColor(technology project.Technology) color.Color {
@@ -223,7 +288,7 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 		items[index] = projectItem{project: found, icons: options.Icons}
 	}
 
-	projectList := list.New(items, projectDelegate{}, 80, 24)
+	projectList := list.New(items, projectDelegate{graphics: options.Icons == icon.ModeGraphics}, 80, 24)
 	projectList.Title = "  FORGEPATH  /  PROJECT SWITCHER  "
 	projectList.SetStatusBarItemName("project", "projects")
 	projectList.Styles.Title = lipgloss.NewStyle().
@@ -252,6 +317,9 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch message := message.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(message.Width, message.Height)
+		if m.mode == projectScreen {
+			m.setProjectDelegate(message.Width)
+		}
 	case editorOpenedMsg:
 		if message.request != m.editorRequest {
 			return m, nil

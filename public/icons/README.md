@@ -12,6 +12,8 @@ remote CDN.
 Product names and logos remain the property of their respective owners. The
 assets are intended only to identify the detected technology.
 
-Standard terminal cells cannot render these SVG files portably. The terminal
-selector therefore uses ANSI-colored text badges by default and offers Nerd
-Font glyphs only as an explicit opt-in.
+ForgePath embeds these files in the Go binary, rasterizes each SVG to a small
+RGBA canvas, and renders the pixels with ANSI truecolor half-block characters.
+This keeps the original logo colors without requiring a terminal-specific
+image protocol. Text badges and Nerd Font glyphs remain available as explicit
+fallback modes.

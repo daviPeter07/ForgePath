@@ -143,6 +143,7 @@ func ignoredBrowserDirectory(name string) bool {
 
 func (m *Model) showProjects() tea.Cmd {
 	m.mode = projectScreen
+	m.setProjectDelegate(m.list.Width())
 	m.currentPath = ""
 	m.currentProject = project.Project{}
 	m.list.ResetFilter()
@@ -155,12 +156,17 @@ func (m *Model) showProjects() tea.Cmd {
 	return m.list.SetItems(items)
 }
 
+func (m *Model) setProjectDelegate(width int) {
+	m.list.SetDelegate(projectDelegate{graphics: m.options.Icons == icon.ModeGraphics && width >= 20})
+}
+
 func (m *Model) showDirectory(path string) (tea.Cmd, error) {
 	directories, err := m.options.ReadDirectories(path)
 	if err != nil {
 		return nil, err
 	}
 	m.mode = directoryScreen
+	m.list.SetDelegate(projectDelegate{})
 	m.currentPath = path
 	m.list.ResetFilter()
 	m.list.Title = "  FORGEPATH  /  " + safeTerminalText(filepath.Base(path)) + "  "
@@ -232,6 +238,7 @@ func (m *Model) showEditors() tea.Cmd {
 	m.editorPath = path
 	m.editorProject = selectedProject
 	m.mode = editorScreen
+	m.list.SetDelegate(projectDelegate{})
 	m.list.ResetFilter()
 	m.list.Title = "  OPEN " + safeTerminalText(filepath.Base(path)) + " WITH…  "
 	m.list.SetStatusBarItemName("installed IDE", "installed IDEs")
