@@ -170,7 +170,6 @@ func TestRootCommandUsesCurrentDirectoryFromAnyDirectory(t *testing.T) {
 	}
 }
 
-
 func TestRootHelpDoesNotStartSelector(t *testing.T) {
 	var stdout bytes.Buffer
 	command := NewRootCommand(&stdout, &bytes.Buffer{})
