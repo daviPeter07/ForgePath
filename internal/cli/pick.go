@@ -75,15 +75,15 @@ func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool,
 		return err
 	}
 	decorateProjectsBestEffort(cmd, statePath, projects)
-	
+
 	startPath := ""
 	if len(workspaces) > 0 {
 		startPath = workspaces[0]
 	}
 
 	selected, found, err := tui.SelectWithOptions(cmd.Context(), projects, tui.Options{
-		Icons: icons,
-		IDEs:  ide.Discover(),
+		Icons:     icons,
+		IDEs:      ide.Discover(),
 		StartPath: startPath,
 		OpenEditor: func(ctx context.Context, path string, selectedProject project.Project, editor ide.IDE) error {
 			if err := action.OpenEditorWithArguments(ctx, path, editor.Executable, editor.Arguments); err != nil {
