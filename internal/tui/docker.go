@@ -92,22 +92,26 @@ func (m *Model) generateDockerCompose(item dockerItem) tea.Cmd {
 func generateDockerOptions(path string, tech project.Technology) []dockerItem {
 	var options []dockerItem
 
-	switch tech {
-	case project.TechnologyGo:
-		options = append(options, dockerItem{
-			label:       "Go App + PostgreSQL",
-			description: "Generate docker-compose.yml for a Go application and PostgreSQL database",
-			projectPath: path,
-			compose: `version: '3.8'
+	options = append(options, dockerItem{
+		label:       "App + PostgreSQL + Redis",
+		description: "Generate docker-compose.yml with App, PostgreSQL and Redis services",
+		projectPath: path,
+		compose: `version: '3.8'
 services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "8000:8000"
     depends_on:
       - db
+      - redis
     environment:
-      - DATABASE_URL=postgres://user:password@db:5432/mydb?sslmode=disable
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=mydb
+      - DB_USER=user
+      - DB_PASS=password
+      - REDIS_HOST=redis
   db:
     image: postgres:15-alpine
     environment:
@@ -118,41 +122,23 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
 volumes:
   pgdata:
+  redisdata:
 `,
-		})
-	case project.TechnologyJavaScript, project.TechnologyTypeScript:
-		options = append(options, dockerItem{
-			label:       "Node App + MongoDB",
-			description: "Generate docker-compose.yml for a Node application and MongoDB database",
-			projectPath: path,
-			compose: `version: '3.8'
-services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-    environment:
-      - MONGO_URI=mongodb://db:27017/mydb
-  db:
-    image: mongo:6
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodata:/data/db
-volumes:
-  mongodata:
-`,
-		})
-	case project.TechnologyPHP:
-		options = append(options, dockerItem{
-			label:       "PHP/Laravel + MySQL + Redis",
-			description: "Generate docker-compose.yml for PHP, MySQL and Redis",
-			projectPath: path,
-			compose: `version: '3.8'
+	})
+
+	options = append(options, dockerItem{
+		label:       "App + MySQL + Redis",
+		description: "Generate docker-compose.yml with App, MySQL and Redis services",
+		projectPath: path,
+		compose: `version: '3.8'
 services:
   app:
     build: .
@@ -162,12 +148,11 @@ services:
       - db
       - redis
     environment:
-      - DB_CONNECTION=mysql
       - DB_HOST=db
       - DB_PORT=3306
-      - DB_DATABASE=mydb
-      - DB_USERNAME=user
-      - DB_PASSWORD=password
+      - DB_NAME=mydb
+      - DB_USER=user
+      - DB_PASS=password
       - REDIS_HOST=redis
   db:
     image: mysql:8
@@ -190,13 +175,13 @@ volumes:
   mysqldata:
   redisdata:
 `,
-		})
-	case project.TechnologyPython:
-		options = append(options, dockerItem{
-			label:       "Python App + PostgreSQL + Redis",
-			description: "Generate docker-compose.yml for Python, PostgreSQL and Redis",
-			projectPath: path,
-			compose: `version: '3.8'
+	})
+
+	options = append(options, dockerItem{
+		label:       "App + PostgreSQL",
+		description: "Generate docker-compose.yml with App and PostgreSQL services",
+		projectPath: path,
+		compose: `version: '3.8'
 services:
   app:
     build: .
@@ -204,10 +189,12 @@ services:
       - "8000:8000"
     depends_on:
       - db
-      - redis
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/mydb
-      - REDIS_URL=redis://redis:6379/0
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=mydb
+      - DB_USER=user
+      - DB_PASS=password
   db:
     image: postgres:15-alpine
     environment:
@@ -218,49 +205,44 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redisdata:/data
 volumes:
   pgdata:
-  redisdata:
 `,
-		})
-	case project.TechnologyJava:
-		options = append(options, dockerItem{
-			label:       "Java Spring Boot + PostgreSQL",
-			description: "Generate docker-compose.yml for Java and PostgreSQL",
-			projectPath: path,
-			compose: `version: '3.8'
+	})
+
+	options = append(options, dockerItem{
+		label:       "App + MySQL",
+		description: "Generate docker-compose.yml with App and MySQL services",
+		projectPath: path,
+		compose: `version: '3.8'
 services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "8000:8000"
     depends_on:
       - db
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mydb
-      - SPRING_DATASOURCE_USERNAME=user
-      - SPRING_DATASOURCE_PASSWORD=password
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=mydb
+      - DB_USER=user
+      - DB_PASS=password
   db:
-    image: postgres:15-alpine
+    image: mysql:8
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: mydb
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mydb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mysqldata:/var/lib/mysql
 volumes:
-  pgdata:
+  mysqldata:
 `,
-		})
-	}
+	})
 
 	options = append(options, dockerItem{
 		label:       "PostgreSQL Database Only",
@@ -282,6 +264,7 @@ volumes:
   pgdata:
 `,
 	})
+	
 	options = append(options, dockerItem{
 		label:       "MySQL Database Only",
 		description: "Generate docker-compose.yml for a standalone MySQL database",
@@ -303,6 +286,7 @@ volumes:
   mysqldata:
 `,
 	})
+	
 	options = append(options, dockerItem{
 		label:       "Redis Server Only",
 		description: "Generate docker-compose.yml for a standalone Redis server",
@@ -317,22 +301,6 @@ services:
       - redisdata:/data
 volumes:
   redisdata:
-`,
-	})
-	options = append(options, dockerItem{
-		label:       "MongoDB Database Only",
-		description: "Generate docker-compose.yml for a standalone MongoDB database",
-		projectPath: path,
-		compose: `version: '3.8'
-services:
-  db:
-    image: mongo:6
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodata:/data/db
-volumes:
-  mongodata:
 `,
 	})
 
