@@ -12,23 +12,9 @@ Developers often keep multiple projects across different folders, technologies, 
 
 ForgePath centralizes this workflow in an interactive terminal interface.
 
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ ForgePath                                D:\Development       │
-├──────────────────────────────────────────────────────────────┤
-│ Search: story_                                             │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│ > [TS] Story Pilot    TypeScript · Next.js      main          │
-│   [PHP] Operis        PHP · Laravel · Vue       develop       │
-│   [JV] Mastermind     Java · Spring Boot        main          │
-│   [PY] Residuum       Python · FastAPI          feature/api   │
-│   [GO] ForgePath      Go                        main          │
-│                                                              │
-├──────────────────────────────────────────────────────────────┤
-│ enter browse   ← back   / search   o IDE   c cd   q quit     │
-└──────────────────────────────────────────────────────────────┘
-```
+![ForgePath CLI Demonstration](docs/demo.gif)
+
+*A quick demonstration of ForgePath in action, including project navigation and Docker Compose generation.*
 
 ## Goals
 
