@@ -274,7 +274,7 @@ volumes:
   pgdata:
 `,
 	})
-	
+
 	options = append(options, dockerItem{
 		label:       "MySQL Database Only",
 		description: "Generate docker-compose.yml for a standalone MySQL database",
@@ -297,7 +297,7 @@ volumes:
   mysqldata:
 `,
 	})
-	
+
 	options = append(options, dockerItem{
 		label:       "Redis Server Only",
 		description: "Generate docker-compose.yml for a standalone Redis server",
@@ -317,4 +317,3 @@ volumes:
 
 	return options
 }
-
