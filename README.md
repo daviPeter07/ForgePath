@@ -12,7 +12,7 @@ Developers often keep multiple projects across different folders, technologies, 
 
 ForgePath centralizes this workflow in an interactive terminal interface.
 
-![ForgePath CLI Demonstration](docs/demo.gif)
+![ForgePath CLI Demonstration](docs/demo.png)
 
 *A quick demonstration of ForgePath in action, including project navigation and Docker Compose generation.*
 
