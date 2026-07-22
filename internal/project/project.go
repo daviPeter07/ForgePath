@@ -14,6 +14,10 @@ const (
 	TechnologyJava       Technology = "Java"
 	TechnologyPHP        Technology = "PHP"
 	TechnologyDocker     Technology = "Docker"
+	TechnologyRust       Technology = "Rust"
+	TechnologyRuby       Technology = "Ruby"
+	TechnologySwift      Technology = "Swift"
+	TechnologyElixir     Technology = "Elixir"
 )
 
 const (

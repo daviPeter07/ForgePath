@@ -3,6 +3,7 @@ package icon
 import (
 	"testing"
 
+	"github.com/charmbracelet/colorprofile"
 	"github.com/daviPeter07/forgepath/internal/project"
 )
 
@@ -15,6 +16,10 @@ func TestLabelSupportsEveryTechnology(t *testing.T) {
 		project.TechnologyJava,
 		project.TechnologyPHP,
 		project.TechnologyDocker,
+		project.TechnologyRust,
+		project.TechnologyRuby,
+		project.TechnologySwift,
+		project.TechnologyElixir,
 	}
 
 	for _, technology := range technologies {
@@ -34,6 +39,8 @@ func TestParseMode(t *testing.T) {
 	}{
 		{value: "ascii", mode: ModeASCII},
 		{value: "ASCII", mode: ModeASCII},
+		{value: "auto", mode: ModeAuto},
+		{value: "graphics", mode: ModeGraphics},
 		{value: "nerd-font", mode: ModeNerdFont},
 	}
 
@@ -49,5 +56,27 @@ func TestParseMode(t *testing.T) {
 
 	if _, err := ParseMode("emoji"); err == nil {
 		t.Fatal("ParseMode(emoji) error = nil, want error")
+	}
+}
+
+func TestResolveModePreservesExplicitMode(t *testing.T) {
+	if got := ResolveMode(ModeGraphics, nil); got != ModeGraphics {
+		t.Fatalf("ResolveMode(graphics) = %q", got)
+	}
+}
+
+func TestResolveModeUsesASCIIFallbackWhenColorIsDisabled(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	if got := ResolveMode(ModeAuto, nil); got != ModeASCII {
+		t.Fatalf("ResolveMode(auto) = %q, want ascii", got)
+	}
+}
+
+func TestModeForProfileUsesASCIIForTrueColor(t *testing.T) {
+	if mode := modeForProfile(colorprofile.TrueColor); mode != ModeASCII {
+		t.Fatalf("modeForProfile(TrueColor) = %q", mode)
+	}
+	if mode := modeForProfile(colorprofile.ANSI256); mode != ModeASCII {
+		t.Fatalf("modeForProfile(ANSI256) = %q", mode)
 	}
 }

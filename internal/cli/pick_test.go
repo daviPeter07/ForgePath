@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/daviPeter07/forgepath/internal/project"
 )
 
 func TestPickCommandPrintsOnlySelectedPath(t *testing.T) {
@@ -19,7 +21,7 @@ func TestPickCommandPrintsOnlySelectedPath(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	command := NewRootCommand(&stdout, &stderr)
-	command.SetIn(strings.NewReader("\x1b[B\r"))
+	command.SetIn(strings.NewReader("\x1b[Bc"))
 	command.SetArgs([]string{"pick", workspace, "--print-path", "--icons", "nerd-font"})
 
 	if err := command.Execute(); err != nil {
@@ -58,6 +60,19 @@ func TestPickCommandRejectsInvalidIconMode(t *testing.T) {
 
 	if err := command.Execute(); err == nil {
 		t.Fatal("Execute() error = nil, want invalid icon mode error")
+	}
+}
+
+func TestProjectRootForPathUsesContainingProject(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "project")
+	nested := filepath.Join(root, "internal", "service")
+	projects := []project.Project{{Name: "project", Path: root}}
+	if got := projectRootForPath(projects, nested); got != root {
+		t.Fatalf("projectRootForPath() = %q, want %q", got, root)
+	}
+	outside := filepath.Join(t.TempDir(), "other")
+	if got := projectRootForPath(projects, outside); got != outside {
+		t.Fatalf("outside projectRootForPath() = %q, want unchanged", got)
 	}
 }
 

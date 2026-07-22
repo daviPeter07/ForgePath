@@ -64,12 +64,14 @@ var fingerprintFiles = []string{
 	"pyproject.toml", "requirements.txt", "Pipfile", "package.json", "tsconfig.json",
 	"Dockerfile", "compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml",
 	"bun.lock", "bun.lockb", "pnpm-lock.yaml", "yarn.lock", "package-lock.json",
-	"uv.lock", "poetry.lock",
+	"uv.lock", "poetry.lock", "Cargo.toml", "Cargo.lock", "Gemfile", "Gemfile.lock",
+	"Package.swift", "Package.resolved", "mix.exs", "mix.lock",
 }
 
 var contentFingerprintFiles = map[string]struct{}{
 	"go.mod": {}, "composer.json": {}, "pom.xml": {}, "build.gradle": {}, "build.gradle.kts": {},
 	"pyproject.toml": {}, "requirements.txt": {}, "Pipfile": {}, "package.json": {}, "tsconfig.json": {},
+	"Cargo.toml": {}, "Gemfile": {}, "Package.swift": {}, "mix.exs": {},
 }
 
 func DefaultDirectory() (string, error) {

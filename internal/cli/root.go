@@ -18,7 +18,7 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	var rootIconMode string
 	var rootRefresh bool
 	command := &cobra.Command{
-		Use:           "forgepath",
+		Use:           "fg",
 		Short:         "Discover software projects in a workspace",
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -29,7 +29,7 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	command.PersistentFlags().StringVar(&configuredPath, "config", configuredPath, "configuration file path")
 	command.PersistentFlags().StringVar(&configuredStatePath, "state", configuredStatePath, "state file path")
 	command.PersistentFlags().StringVar(&configuredCachePath, "cache", configuredCachePath, "project cache directory")
-	command.Flags().StringVar(&rootIconMode, "icons", string(icon.ModeASCII), "icon mode: ascii or nerd-font")
+	command.Flags().StringVar(&rootIconMode, "icons", string(icon.ModeAuto), "icon mode: auto, graphics, ascii, or nerd-font")
 	command.Flags().BoolVar(&rootRefresh, "refresh", false, "ignore and rebuild the project cache")
 	configPath := func() (string, error) {
 		return resolveConfigPath(configuredPath)
@@ -54,15 +54,16 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return runPicker(cmd, nil, icons, rootRefresh, scan, statePath)
+		return runPicker(cmd, nil, icons, rootRefresh, scan, statePath, configPath)
 	}
-	command.AddCommand(newListCommandWithScanner(scan, statePath))
-	command.AddCommand(newPickCommandWithScanner(scan, statePath))
+	command.AddCommand(newConfiguredListCommand(scan, statePath, configPath))
+	command.AddCommand(newConfiguredPickCommand(scan, statePath, configPath))
 	command.AddCommand(newScanCommand(scan))
 	command.AddCommand(newOpenCommand(action.OpenEditor, configPath, statePath))
 	command.AddCommand(newRevealCommand(action.OpenFolder, statePath))
 	command.AddCommand(newRunCommand(configPath, action.RunCommand, statePath))
 	command.AddCommand(newConfigCommand(configPath))
+	command.AddCommand(newWorkspaceCommand(configPath))
 	command.AddCommand(newFavoriteCommand(statePath))
 	command.AddCommand(newRecentCommand(statePath))
 

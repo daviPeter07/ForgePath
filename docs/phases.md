@@ -350,7 +350,7 @@ Permitir que o usuário execute o ForgePath pelo terminal.
 
 ```text
 cmd/
-└── forgepath/
+└── fg/
     └── main.go
 
 internal/
@@ -362,7 +362,7 @@ internal/
 ### Comando inicial
 
 ```bash
-forgepath list [workspace]
+fg list [workspace]
 ```
 
 ### Tarefas
@@ -371,7 +371,7 @@ forgepath list [workspace]
 - [x] Configurar o Cobra
 - [x] Criar o comando raiz
 - [x] Criar o comando `list`
-- [x] Usar o diretório atual quando nenhum caminho for informado
+- [x] Usar os workspaces configurados globalmente quando nenhum caminho for informado
 - [x] Executar o scanner
 - [x] Imprimir os projetos encontrados
 - [x] Imprimir erros em `stderr`
@@ -393,7 +393,7 @@ forgepath list [workspace]
 O comando abaixo lista projetos detectados:
 
 ```bash
-forgepath list D:\Development
+fg list D:\Development
 ```
 
 ---
@@ -410,13 +410,14 @@ Permitir que o usuário selecione um projeto e navegue até a pasta no terminal 
 - [x] Separar a saída visual da saída utilizada pelo shell
 - [x] Criar função para PowerShell
 - [x] Criar função para Bash
+- [x] Manter histórico com `Push-Location`/`pushd` e voltar com `fg back`
 - [x] Testar caminhos com espaços
 - [x] Tratar cancelamento da seleção
 
 ### Exemplo de uso esperado
 
 ```powershell
-fp
+fg
 ```
 
 ### Conceitos estudados
@@ -451,7 +452,11 @@ Substituir a listagem simples por uma TUI navegável.
 - [x] Criar o modelo inicial da TUI
 - [x] Carregar os projetos encontrados pelo scanner
 - [x] Implementar navegação pelo teclado
-- [x] Implementar seleção com Enter
+- [x] Usar Enter para navegar por projetos e subdiretórios sem encerrar a TUI
+- [x] Usar Backspace ou seta para esquerda para voltar dentro da TUI
+- [x] Confirmar a mudança do shell separadamente com `c`
+- [x] Detectar IDEs realmente instaladas
+- [x] Sugerir IDEs por tecnologia e permitir abertura sem fechar a TUI
 - [x] Implementar pesquisa
 - [x] Implementar ajuda de atalhos
 - [x] Tratar redimensionamento do terminal
@@ -487,7 +492,10 @@ Enriquecer a apresentação dos projetos sem comprometer o núcleo já testado.
 - [x] Detectar Docker
 - [x] Mostrar branch atual do Git
 - [x] Mostrar alterações não commitadas
-- [x] Adicionar ícones Nerd Font
+- [x] Incorporar SVGs com `go:embed` e renderizar logos com pixels ANSI truecolor
+- [x] Manter badges ANSI coloridos como fallback
+- [x] Armazenar logos SVG coloridos do Devicon em `public/icons`
+- [x] Manter ícones Nerd Font como opção explícita
 - [x] Criar fallback sem ícones
 - [x] Abrir projeto no editor
 - [x] Abrir pasta no gerenciador de arquivos

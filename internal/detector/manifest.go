@@ -19,11 +19,29 @@ type rule struct {
 var rules = []rule{
 	{technology: project.TechnologyGo, required: []string{"go.mod"}},
 	{technology: project.TechnologyPHP, required: []string{"composer.json"}},
+	{technology: project.TechnologyRust, required: []string{"Cargo.toml"}},
+	{technology: project.TechnologyRuby, required: []string{"Gemfile"}},
+	{technology: project.TechnologySwift, required: []string{"Package.swift"}},
+	{technology: project.TechnologyElixir, required: []string{"mix.exs"}},
 	{technology: project.TechnologyJava, alternatives: []string{"pom.xml", "build.gradle", "build.gradle.kts"}},
 	{technology: project.TechnologyPython, alternatives: []string{"pyproject.toml", "requirements.txt", "Pipfile"}},
 	{technology: project.TechnologyTypeScript, required: []string{"package.json", "tsconfig.json"}},
 	{technology: project.TechnologyJavaScript, required: []string{"package.json"}, excluded: []string{"tsconfig.json"}},
 	{technology: project.TechnologyDocker, alternatives: []string{"Dockerfile", "compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}},
+}
+
+var extensionFallbacks = map[string]project.Technology{
+	".go":    project.TechnologyGo,
+	".py":    project.TechnologyPython,
+	".js":    project.TechnologyJavaScript,
+	".ts":    project.TechnologyTypeScript,
+	".java":  project.TechnologyJava,
+	".php":   project.TechnologyPHP,
+	".rs":    project.TechnologyRust,
+	".rb":    project.TechnologyRuby,
+	".swift": project.TechnologySwift,
+	".ex":    project.TechnologyElixir,
+	".exs":   project.TechnologyElixir,
 }
 
 func Detect(path string) (Result, bool, error) {
@@ -49,6 +67,27 @@ func Detect(path string) (Result, bool, error) {
 				PackageManagers: metadata.packageManagers,
 				HasDocker:       metadata.hasDocker,
 			}, true, nil
+		}
+	}
+
+	// Fallback: detect by file extensions
+	entries, err := os.ReadDir(path)
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			ext := filepath.Ext(entry.Name())
+			if tech, ok := extensionFallbacks[ext]; ok {
+				metadata := detectMetadata(path)
+				return Result{
+					Technology:      tech,
+					Markers:         []string{entry.Name()},
+					Frameworks:      metadata.frameworks,
+					PackageManagers: metadata.packageManagers,
+					HasDocker:       metadata.hasDocker,
+				}, true, nil
+			}
 		}
 	}
 

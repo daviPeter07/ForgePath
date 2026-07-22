@@ -91,7 +91,7 @@ func TestRootCommandOpensSelector(t *testing.T) {
 
 	var stdout bytes.Buffer
 	command := NewRootCommand(&stdout, &bytes.Buffer{})
-	command.SetIn(strings.NewReader("\r"))
+	command.SetIn(strings.NewReader("c"))
 	command.SetArgs([]string{"--icons", "nerd-font", "--refresh"})
 
 	if err := command.Execute(); err != nil {
@@ -100,6 +100,14 @@ func TestRootCommandOpensSelector(t *testing.T) {
 	want := filepath.Join(workspace, "app") + "\n"
 	if stdout.String() != want {
 		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
+	}
+}
+
+func TestRootCommandUsesAutomaticIconModeByDefault(t *testing.T) {
+	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
+	flag := command.Flags().Lookup("icons")
+	if flag == nil || flag.DefValue != "auto" {
+		t.Fatalf("icons default = %v, want auto", flag)
 	}
 }
 
@@ -131,12 +139,15 @@ func TestRootCommandCancellation(t *testing.T) {
 	}
 }
 
-func TestRootCommandReturnsErrorWithoutProjects(t *testing.T) {
+func TestRootCommandUsesCurrentDirectoryFromAnyDirectory(t *testing.T) {
+	currentDir := t.TempDir()
+	createCLIProject(t, currentDir, "local-app", "go.mod")
+
 	originalDirectory, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chdir(t.TempDir()); err != nil {
+	if err := os.Chdir(currentDir); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -145,10 +156,17 @@ func TestRootCommandReturnsErrorWithoutProjects(t *testing.T) {
 		}
 	})
 
-	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
-	command.SetArgs([]string{})
-	if err := command.Execute(); err == nil {
-		t.Fatal("Execute() error = nil, want no-projects error")
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	var stdout bytes.Buffer
+	command := NewRootCommand(&stdout, &bytes.Buffer{})
+	command.SetIn(strings.NewReader("c"))
+	command.SetArgs([]string{"--config", configPath, "--icons", "ascii"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	want := filepath.Join(currentDir, "local-app") + "\n"
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
 	}
 }
 
