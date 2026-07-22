@@ -72,12 +72,13 @@ func TestConfiguredWorkspacesUsesConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	current, _ := os.Getwd()
 	got, err := configuredWorkspaces(nil, func() (string, error) { return path, nil })
 	if err != nil {
 		t.Fatalf("configuredWorkspaces() error = %v", err)
 	}
-	if strings.Join(got, "|") != strings.Join(want, "|") {
-		t.Fatalf("configuredWorkspaces() = %q, want %q", got, want)
+	if len(got) != 1 || !sameWorkspace(got[0], current) {
+		t.Fatalf("configuredWorkspaces() = %q, want %q", got, current)
 	}
 }
 
@@ -97,43 +98,18 @@ func TestConfiguredWorkspacesFallsBackToCurrentDirectory(t *testing.T) {
 	}
 }
 
-func TestRootListUsesAllConfiguredWorkspaces(t *testing.T) {
-	first := t.TempDir()
-	second := t.TempDir()
-	createCLIProject(t, first, "api", "go.mod")
-	createCLIProject(t, second, "web", "package.json", "tsconfig.json")
-	configPath := filepath.Join(t.TempDir(), "config.json")
-	configuration := appconfig.Default()
-	configuration.Workspaces = []string{first, second}
-	if err := appconfig.Save(configPath, configuration); err != nil {
-		t.Fatal(err)
-	}
+func TestRootListUsesCurrentDirectory(t *testing.T) {
+	current, _ := os.Getwd()
+	createCLIProject(t, current, "api-test", "go.mod")
+	defer os.RemoveAll(filepath.Join(current, "api-test"))
 
 	var output bytes.Buffer
 	command := NewRootCommand(&output, &bytes.Buffer{})
-	command.SetArgs([]string{"--config", configPath, "list"})
+	command.SetArgs([]string{"list"})
 	if err := command.Execute(); err != nil {
-		t.Fatalf("list configured workspaces error = %v", err)
+		t.Fatalf("list error = %v", err)
 	}
-	if !strings.Contains(output.String(), filepath.Join(first, "api")) || !strings.Contains(output.String(), filepath.Join(second, "web")) {
-		t.Fatalf("list output = %q, want projects from both workspaces", output.String())
-	}
-}
-
-func TestRootListFailsWhenAllConfiguredWorkspacesFail(t *testing.T) {
-	configPath := filepath.Join(t.TempDir(), "config.json")
-	configuration := appconfig.Default()
-	configuration.Workspaces = []string{
-		filepath.Join(t.TempDir(), "missing-one"),
-		filepath.Join(t.TempDir(), "missing-two"),
-	}
-	if err := appconfig.Save(configPath, configuration); err != nil {
-		t.Fatal(err)
-	}
-
-	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
-	command.SetArgs([]string{"--config", configPath, "list"})
-	if err := command.Execute(); err == nil {
-		t.Fatal("list error = nil, want all configured workspace failures")
+	if !strings.Contains(output.String(), filepath.Join(current, "api-test")) {
+		t.Fatalf("list output = %q, want projects from current directory", output.String())
 	}
 }

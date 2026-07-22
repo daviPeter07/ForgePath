@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	appconfig "github.com/daviPeter07/forgepath/internal/config"
 )
 
 func TestListCommand(t *testing.T) {
@@ -141,21 +139,15 @@ func TestRootCommandCancellation(t *testing.T) {
 	}
 }
 
-func TestRootCommandUsesConfiguredWorkspaceFromAnyDirectory(t *testing.T) {
-	workspace := t.TempDir()
-	createCLIProject(t, workspace, "global-app", "go.mod")
-	configPath := filepath.Join(t.TempDir(), "config.json")
-	configuration := appconfig.Default()
-	configuration.Workspaces = []string{workspace}
-	if err := appconfig.Save(configPath, configuration); err != nil {
-		t.Fatal(err)
-	}
+func TestRootCommandUsesCurrentDirectoryFromAnyDirectory(t *testing.T) {
+	currentDir := t.TempDir()
+	createCLIProject(t, currentDir, "local-app", "go.mod")
 
 	originalDirectory, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chdir(t.TempDir()); err != nil {
+	if err := os.Chdir(currentDir); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -164,6 +156,7 @@ func TestRootCommandUsesConfiguredWorkspaceFromAnyDirectory(t *testing.T) {
 		}
 	})
 
+	configPath := filepath.Join(t.TempDir(), "config.json")
 	var stdout bytes.Buffer
 	command := NewRootCommand(&stdout, &bytes.Buffer{})
 	command.SetIn(strings.NewReader("c"))
@@ -171,32 +164,12 @@ func TestRootCommandUsesConfiguredWorkspaceFromAnyDirectory(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
-	want := filepath.Join(workspace, "global-app") + "\n"
+	want := filepath.Join(currentDir, "local-app") + "\n"
 	if stdout.String() != want {
 		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
 	}
 }
 
-func TestRootCommandReturnsErrorWithoutProjects(t *testing.T) {
-	originalDirectory, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(t.TempDir()); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(originalDirectory); err != nil {
-			t.Errorf("restore working directory: %v", err)
-		}
-	})
-
-	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
-	command.SetArgs([]string{})
-	if err := command.Execute(); err == nil {
-		t.Fatal("Execute() error = nil, want no-projects error")
-	}
-}
 
 func TestRootHelpDoesNotStartSelector(t *testing.T) {
 	var stdout bytes.Buffer
