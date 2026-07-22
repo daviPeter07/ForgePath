@@ -65,7 +65,11 @@ jobs:
             throw "fg back did not restore the previous directory"
           }
           $Error.Clear()
-          fg back 2>$null
+          try {
+            fg back 2>$null
+          } catch {
+            # expected
+          }
           if ($Error.Count -eq 0) {
             throw "fg back unexpectedly succeeded with an empty stack"
           }
