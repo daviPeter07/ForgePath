@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -71,7 +72,7 @@ func (m *Model) showDocker() tea.Cmd {
 func (m *Model) generateDockerCompose(item dockerItem) tea.Cmd {
 	composePath := filepath.Join(item.projectPath, "docker-compose.yml")
 	if _, err := os.Stat(composePath); err == nil {
-		return m.list.NewStatusMessage(safeTerminalText("docker-compose.yml already exists"))
+		return m.newErrorMessage(fmt.Errorf("docker-compose.yml already exists"))
 	}
 	err := os.WriteFile(composePath, []byte(item.compose), 0o644)
 
@@ -84,7 +85,7 @@ func (m *Model) generateDockerCompose(item dockerItem) tea.Cmd {
 	}
 
 	if err != nil {
-		return tea.Batch(command, m.list.NewStatusMessage(safeTerminalText("Failed to generate: "+err.Error())))
+		return tea.Batch(command, m.newErrorMessage(fmt.Errorf("failed to generate: %w", err)))
 	}
 	return tea.Batch(command, m.list.NewStatusMessage(safeTerminalText("Generated docker-compose.yml for "+item.label)))
 }
