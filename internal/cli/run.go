@@ -30,7 +30,7 @@ func newRunCommand(configPath configPathFunc, runCommand runCommandFunc, statePa
 			configuration, err := appconfig.Load(path)
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("load config %q (run forgepath config init to create it): %w", path, err)
+					return fmt.Errorf("load config %q (run fg config init to create it): %w", path, err)
 				}
 				return fmt.Errorf("load config %q: %w", path, err)
 			}

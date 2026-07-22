@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	appconfig "github.com/daviPeter07/forgepath/internal/config"
 )
 
 func TestListCommand(t *testing.T) {
@@ -103,6 +105,14 @@ func TestRootCommandOpensSelector(t *testing.T) {
 	}
 }
 
+func TestRootCommandUsesAutomaticIconModeByDefault(t *testing.T) {
+	command := NewRootCommand(&bytes.Buffer{}, &bytes.Buffer{})
+	flag := command.Flags().Lookup("icons")
+	if flag == nil || flag.DefValue != "auto" {
+		t.Fatalf("icons default = %v, want auto", flag)
+	}
+}
+
 func TestRootCommandCancellation(t *testing.T) {
 	workspace := t.TempDir()
 	createCLIProject(t, workspace, "app", "go.mod")
@@ -128,6 +138,42 @@ func TestRootCommandCancellation(t *testing.T) {
 	}
 	if stdout.Len() != 0 {
 		t.Fatalf("stdout = %q, want empty after cancellation", stdout.String())
+	}
+}
+
+func TestRootCommandUsesConfiguredWorkspaceFromAnyDirectory(t *testing.T) {
+	workspace := t.TempDir()
+	createCLIProject(t, workspace, "global-app", "go.mod")
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	configuration := appconfig.Default()
+	configuration.Workspaces = []string{workspace}
+	if err := appconfig.Save(configPath, configuration); err != nil {
+		t.Fatal(err)
+	}
+
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDirectory); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	var stdout bytes.Buffer
+	command := NewRootCommand(&stdout, &bytes.Buffer{})
+	command.SetIn(strings.NewReader("c"))
+	command.SetArgs([]string{"--config", configPath, "--icons", "ascii"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	want := filepath.Join(workspace, "global-app") + "\n"
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
 	}
 }
 
