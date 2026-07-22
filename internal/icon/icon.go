@@ -22,6 +22,10 @@ var asciiLabels = map[project.Technology]string{
 	project.TechnologyJava:       "[JV]",
 	project.TechnologyPHP:        "[PHP]",
 	project.TechnologyDocker:     "[DK]",
+	project.TechnologyRust:       "[RS]",
+	project.TechnologyRuby:       "[RB]",
+	project.TechnologySwift:      "[SW]",
+	project.TechnologyElixir:     "[EX]",
 }
 
 var nerdFontLabels = map[project.Technology]string{
@@ -32,6 +36,10 @@ var nerdFontLabels = map[project.Technology]string{
 	project.TechnologyJava:       "",
 	project.TechnologyPHP:        "",
 	project.TechnologyDocker:     "",
+	project.TechnologyRust:       "",
+	project.TechnologyRuby:       "",
+	project.TechnologySwift:      "",
+	project.TechnologyElixir:     "",
 }
 
 func ParseMode(value string) (Mode, error) {

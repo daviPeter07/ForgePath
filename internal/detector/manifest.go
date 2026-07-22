@@ -19,6 +19,10 @@ type rule struct {
 var rules = []rule{
 	{technology: project.TechnologyGo, required: []string{"go.mod"}},
 	{technology: project.TechnologyPHP, required: []string{"composer.json"}},
+	{technology: project.TechnologyRust, required: []string{"Cargo.toml"}},
+	{technology: project.TechnologyRuby, required: []string{"Gemfile"}},
+	{technology: project.TechnologySwift, required: []string{"Package.swift"}},
+	{technology: project.TechnologyElixir, required: []string{"mix.exs"}},
 	{technology: project.TechnologyJava, alternatives: []string{"pom.xml", "build.gradle", "build.gradle.kts"}},
 	{technology: project.TechnologyPython, alternatives: []string{"pyproject.toml", "requirements.txt", "Pipfile"}},
 	{technology: project.TechnologyTypeScript, required: []string{"package.json", "tsconfig.json"}},

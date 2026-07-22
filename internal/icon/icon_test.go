@@ -15,6 +15,10 @@ func TestLabelSupportsEveryTechnology(t *testing.T) {
 		project.TechnologyJava,
 		project.TechnologyPHP,
 		project.TechnologyDocker,
+		project.TechnologyRust,
+		project.TechnologyRuby,
+		project.TechnologySwift,
+		project.TechnologyElixir,
 	}
 
 	for _, technology := range technologies {

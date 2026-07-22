@@ -18,6 +18,10 @@ func TestDetectTechnologies(t *testing.T) {
 	}{
 		{name: "Go", files: []string{"go.mod"}, technology: project.TechnologyGo, markers: []string{"go.mod"}},
 		{name: "PHP", files: []string{"composer.json"}, technology: project.TechnologyPHP, markers: []string{"composer.json"}},
+		{name: "Rust", files: []string{"Cargo.toml"}, technology: project.TechnologyRust, markers: []string{"Cargo.toml"}},
+		{name: "Ruby", files: []string{"Gemfile"}, technology: project.TechnologyRuby, markers: []string{"Gemfile"}},
+		{name: "Swift", files: []string{"Package.swift"}, technology: project.TechnologySwift, markers: []string{"Package.swift"}},
+		{name: "Elixir", files: []string{"mix.exs"}, technology: project.TechnologyElixir, markers: []string{"mix.exs"}},
 		{name: "Java with Maven", files: []string{"pom.xml"}, technology: project.TechnologyJava, markers: []string{"pom.xml"}},
 		{name: "Java with Gradle", files: []string{"build.gradle"}, technology: project.TechnologyJava, markers: []string{"build.gradle"}},
 		{name: "Java with Gradle Kotlin", files: []string{"build.gradle.kts"}, technology: project.TechnologyJava, markers: []string{"build.gradle.kts"}},
