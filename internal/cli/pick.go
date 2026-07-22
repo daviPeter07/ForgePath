@@ -3,7 +3,11 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/daviPeter07/forgepath/internal/action"
@@ -99,11 +103,52 @@ func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool,
 	if !found {
 		return nil
 	}
-	if _, err = fmt.Fprintln(cmd.OutOrStdout(), selected.Path); err != nil {
-		return err
+	printPath := false
+	if flag, err := cmd.Flags().GetBool("print-path"); err == nil && flag {
+		printPath = true
+	} else if !isTerminalWriter(cmd.OutOrStdout()) {
+		printPath = true
+	}
+
+	if printPath {
+		if _, err = fmt.Fprintln(cmd.OutOrStdout(), selected.Path); err != nil {
+			return err
+		}
+	} else {
+		shell := os.Getenv("SHELL")
+		if shell == "" {
+			if runtime.GOOS == "windows" {
+				shell = os.Getenv("COMSPEC")
+				if shell == "" {
+					shell = "powershell.exe"
+				}
+			} else {
+				shell = "bash"
+			}
+		}
+
+		fmt.Fprintf(cmd.ErrOrStderr(), "Changing directory to %s...\n", selected.Path)
+		shellCmd := exec.CommandContext(cmd.Context(), shell)
+		shellCmd.Dir = selected.Path
+		shellCmd.Stdin = os.Stdin
+		shellCmd.Stdout = os.Stdout
+		shellCmd.Stderr = os.Stderr
+
+		if err := shellCmd.Run(); err != nil {
+			return err
+		}
 	}
 	recordRecentBestEffort(cmd, statePath, projectRootForPath(projects, selected.Path))
 	return nil
+}
+
+func isTerminalWriter(out io.Writer) bool {
+	file, ok := out.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	return err == nil && (info.Mode()&os.ModeCharDevice) != 0
 }
 
 func projectRootForPath(projects []project.Project, path string) string {
