@@ -25,6 +25,7 @@ const (
 	projectScreen screenMode = iota
 	directoryScreen
 	editorScreen
+	dockerScreen
 )
 
 type Directory struct {
@@ -203,6 +204,8 @@ func (m *Model) enterSelected() (tea.Cmd, error) {
 		return m.showDirectory(item.directory.Path)
 	case editorItem:
 		return m.openSelectedEditor(item), nil
+	case dockerItem:
+		return m.generateDockerCompose(item), nil
 	default:
 		return nil, nil
 	}
@@ -210,7 +213,7 @@ func (m *Model) enterSelected() (tea.Cmd, error) {
 
 func (m *Model) goBack() (tea.Cmd, error) {
 	switch m.mode {
-	case editorScreen:
+	case editorScreen, dockerScreen:
 		m.editorRequest++
 		m.editorOpening = false
 		if m.returnMode == projectScreen {

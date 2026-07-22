@@ -33,6 +33,11 @@ var editorKey = key.NewBinding(
 	key.WithHelp("o", "open IDE"),
 )
 
+var dockerKey = key.NewBinding(
+	key.WithKeys("d"),
+	key.WithHelp("d", "docker compose"),
+)
+
 var backKey = key.NewBinding(
 	key.WithKeys("backspace", "left"),
 	key.WithHelp("←/backspace", "back"),
@@ -81,6 +86,9 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 		return
 	case editorItem:
 		renderEditorItem(writer, model, index, item)
+		return
+	case dockerItem:
+		renderDockerItem(writer, model, index, item)
 		return
 	}
 	item, ok := raw.(projectItem)
@@ -301,10 +309,10 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 		Bold(true).
 		Foreground(palette.bright)
 	projectList.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{selectKey, chooseKey, editorKey, backKey}
+		return []key.Binding{selectKey, chooseKey, editorKey, dockerKey, backKey}
 	}
 	projectList.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{selectKey, chooseKey, editorKey, backKey}
+		return []key.Binding{selectKey, chooseKey, editorKey, dockerKey, backKey}
 	}
 
 	model := Model{list: projectList, projects: append([]project.Project(nil), projects...), options: options}
@@ -384,6 +392,10 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, command
 		case "c":
 			return m, m.confirmCurrentDirectory()
+		case "d":
+			if m.mode != dockerScreen {
+				return m, m.showDocker()
+			}
 		case "o":
 			if m.mode != editorScreen {
 				return m, m.showEditors()
