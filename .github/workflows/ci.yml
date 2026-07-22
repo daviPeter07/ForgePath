@@ -31,7 +31,17 @@ jobs:
         run: go test ./...
 
       - name: Validate Bash integration
-        run: bash -n shell/forgepath.sh
+        run: |
+          bash -n shell/forgepath.sh
+          source shell/forgepath.sh
+          start="$PWD"
+          pushd /tmp >/dev/null
+          fg back
+          test "$PWD" = "$start"
+          if fg back 2>/dev/null; then
+            echo "fg back unexpectedly succeeded with an empty stack" >&2
+            exit 1
+          fi
 
       - name: Validate PowerShell integration
         shell: pwsh
@@ -46,4 +56,16 @@ jobs:
           if ($parseErrors.Count -gt 0) {
             $parseErrors | Write-Error
             exit 1
+          }
+          . ./shell/forgepath.ps1
+          $start = (Get-Location).Path
+          Push-Location -LiteralPath ([System.IO.Path]::GetTempPath())
+          fg back
+          if ((Get-Location).Path -ne $start) {
+            throw "fg back did not restore the previous directory"
+          }
+          $Error.Clear()
+          fg back 2>$null
+          if ($Error.Count -eq 0) {
+            throw "fg back unexpectedly succeeded with an empty stack"
           }
