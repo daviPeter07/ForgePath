@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/daviPeter07/forgepath/internal/detector"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/ide"
 	"github.com/daviPeter07/forgepath/internal/project"
@@ -40,6 +41,7 @@ type Options struct {
 	ReadDirectories ReadDirectoriesFunc
 	OpenEditor      OpenEditorFunc
 	Context         context.Context
+	StartPath       string
 }
 
 type directoryItem struct {
@@ -166,14 +168,28 @@ func (m *Model) showDirectory(path string) (tea.Cmd, error) {
 		return nil, err
 	}
 	m.mode = directoryScreen
-	m.list.SetDelegate(projectDelegate{})
+	m.list.SetDelegate(projectDelegate{graphics: m.options.Icons == icon.ModeGraphics && m.list.Width() >= 20})
 	m.currentPath = path
 	m.list.ResetFilter()
 	m.list.Title = "  FORGEPATH  /  " + safeTerminalText(filepath.Base(path)) + "  "
-	m.list.SetStatusBarItemName("directory", "directories")
-	items := make([]list.Item, len(directories))
-	for index, directory := range directories {
-		items[index] = directoryItem{directory: directory}
+	m.list.SetStatusBarItemName("item", "items")
+	items := make([]list.Item, 0, len(directories))
+	for _, directory := range directories {
+		result, found, err := detector.Detect(directory.Path)
+		if err == nil && found {
+			p := project.Project{
+				Name:            directory.Name,
+				Path:            directory.Path,
+				Technology:      result.Technology,
+				Markers:         result.Markers,
+				Frameworks:      result.Frameworks,
+				PackageManagers: result.PackageManagers,
+				HasDocker:       result.HasDocker,
+			}
+			items = append(items, projectItem{project: p, icons: m.options.Icons})
+		} else {
+			items = append(items, directoryItem{directory: directory})
+		}
 	}
 	return m.list.SetItems(items), nil
 }

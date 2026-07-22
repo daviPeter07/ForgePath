@@ -18,8 +18,5 @@ func ResolveMode(mode Mode, output io.Writer) Mode {
 }
 
 func modeForProfile(profile colorprofile.Profile) Mode {
-	if profile == colorprofile.TrueColor {
-		return ModeGraphics
-	}
 	return ModeASCII
 }

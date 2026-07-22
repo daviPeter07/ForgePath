@@ -72,11 +72,11 @@ func TestResolveModeUsesASCIIFallbackWhenColorIsDisabled(t *testing.T) {
 	}
 }
 
-func TestModeForProfileUsesGraphicsOnlyForTrueColor(t *testing.T) {
-	if got := modeForProfile(colorprofile.TrueColor); got != ModeGraphics {
-		t.Fatalf("modeForProfile(TrueColor) = %q", got)
+func TestModeForProfileUsesASCIIForTrueColor(t *testing.T) {
+	if mode := modeForProfile(colorprofile.TrueColor); mode != ModeASCII {
+		t.Fatalf("modeForProfile(TrueColor) = %q", mode)
 	}
-	if got := modeForProfile(colorprofile.ANSI256); got != ModeASCII {
-		t.Fatalf("modeForProfile(ANSI256) = %q", got)
+	if mode := modeForProfile(colorprofile.ANSI256); mode != ModeASCII {
+		t.Fatalf("modeForProfile(ANSI256) = %q", mode)
 	}
 }

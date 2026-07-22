@@ -132,7 +132,7 @@ func newWorkspaceListCommand(configPath configPathFunc) *cobra.Command {
 }
 
 func configuredWorkspaces(args []string, configPath configPathFunc) ([]string, error) {
-	if len(args) == 1 || configPath == nil {
+	if len(args) <= 1 || configPath == nil {
 		workspace, err := workspaceFrom(args)
 		if err != nil {
 			return nil, err

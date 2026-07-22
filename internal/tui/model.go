@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/daviPeter07/forgepath/internal/detector"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/project"
 )
@@ -306,7 +307,38 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 		return []key.Binding{selectKey, chooseKey, editorKey, backKey}
 	}
 
-	return Model{list: projectList, projects: append([]project.Project(nil), projects...), options: options}
+	model := Model{list: projectList, projects: append([]project.Project(nil), projects...), options: options}
+	if len(projects) == 0 && options.StartPath != "" {
+		// Initialize directly
+		directories, err := options.ReadDirectories(options.StartPath)
+		if err == nil {
+			model.mode = directoryScreen
+			model.setProjectDelegate(model.list.Width())
+			model.currentPath = options.StartPath
+			model.list.Title = "  FORGEPATH  /  " + safeTerminalText(filepath.Base(options.StartPath)) + "  "
+			model.list.SetStatusBarItemName("item", "items")
+			items := make([]list.Item, 0, len(directories))
+			for _, directory := range directories {
+				result, found, err := detector.Detect(directory.Path)
+				if err == nil && found {
+					p := project.Project{
+						Name:            directory.Name,
+						Path:            directory.Path,
+						Technology:      result.Technology,
+						Markers:         result.Markers,
+						Frameworks:      result.Frameworks,
+						PackageManagers: result.PackageManagers,
+						HasDocker:       result.HasDocker,
+					}
+					items = append(items, projectItem{project: p, icons: options.Icons})
+				} else {
+					items = append(items, directoryItem{directory: directory})
+				}
+			}
+			model.list.SetItems(items)
+		}
+	}
+	return model
 }
 
 func (m Model) Init() tea.Cmd {
