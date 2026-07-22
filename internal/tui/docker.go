@@ -106,6 +106,7 @@ services:
     depends_on:
       - db
       - redis
+    # TODO: change to .env variables in production (e.g. ${DB_USER})
     environment:
       - DB_HOST=db
       - DB_PORT=5432
@@ -115,6 +116,7 @@ services:
       - REDIS_HOST=redis
   db:
     image: postgres:15-alpine
+    # TODO: change to .env variables in production (e.g. ${POSTGRES_USER})
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -148,6 +150,7 @@ services:
     depends_on:
       - db
       - redis
+    # TODO: change to .env variables in production (e.g. ${DB_USER})
     environment:
       - DB_HOST=db
       - DB_PORT=3306
@@ -157,6 +160,7 @@ services:
       - REDIS_HOST=redis
   db:
     image: mysql:8
+    # TODO: change to .env variables in production (e.g. ${MYSQL_USER})
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: mydb
@@ -190,6 +194,7 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    # TODO: change to .env variables in production (e.g. ${DB_USER})
     environment:
       - DB_HOST=db
       - DB_PORT=5432
@@ -198,6 +203,7 @@ services:
       - DB_PASS=password
   db:
     image: postgres:15-alpine
+    # TODO: change to .env variables in production (e.g. ${POSTGRES_USER})
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -223,6 +229,7 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    # TODO: change to .env variables in production (e.g. ${DB_USER})
     environment:
       - DB_HOST=db
       - DB_PORT=3306
@@ -231,6 +238,7 @@ services:
       - DB_PASS=password
   db:
     image: mysql:8
+    # TODO: change to .env variables in production (e.g. ${MYSQL_USER})
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: mydb
@@ -253,6 +261,7 @@ volumes:
 services:
   db:
     image: postgres:15-alpine
+    # TODO: change to .env variables in production (e.g. ${POSTGRES_USER})
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -274,6 +283,7 @@ volumes:
 services:
   db:
     image: mysql:8
+    # TODO: change to .env variables in production (e.g. ${MYSQL_USER})
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: mydb
@@ -307,3 +317,4 @@ volumes:
 
 	return options
 }
+
