@@ -40,7 +40,7 @@ func TestRevealCommandResolvesProject(t *testing.T) {
 	command := newRevealCommand(func(_ context.Context, path string) error {
 		receivedPath = path
 		return nil
-	})
+	}, nil)
 	command.SetArgs([]string{"app", workspace})
 
 	if err := command.Execute(); err != nil {
@@ -120,7 +120,7 @@ func TestResolveProjectUsesCurrentDirectory(t *testing.T) {
 		}
 	})
 
-	found, err := resolveProject(context.Background(), "app", nil)
+	found, err := resolveProject(context.Background(), "app", nil, nil)
 	if err != nil {
 		t.Fatalf("resolveProject() error = %v", err)
 	}

@@ -17,14 +17,14 @@ func TestFavoriteCommands(t *testing.T) {
 	stateFile := filepath.Join(t.TempDir(), "state.json")
 	statePath := func() (string, error) { return stateFile, nil }
 
-	add := newFavoriteCommand(statePath)
+	add := newFavoriteCommand(statePath, nil)
 	add.SetArgs([]string{"add", "app", workspace})
 	if err := add.Execute(); err != nil {
 		t.Fatalf("favorite add error = %v", err)
 	}
 
 	var stdout bytes.Buffer
-	list := newFavoriteCommand(statePath)
+	list := newFavoriteCommand(statePath, nil)
 	list.SetOut(&stdout)
 	list.SetArgs([]string{"list"})
 	if err := list.Execute(); err != nil {
@@ -35,7 +35,7 @@ func TestFavoriteCommands(t *testing.T) {
 		t.Fatalf("favorite list = %q, want %q", stdout.String(), wantPath)
 	}
 
-	remove := newFavoriteCommand(statePath)
+	remove := newFavoriteCommand(statePath, nil)
 	remove.SetArgs([]string{"remove", "app", workspace})
 	if err := remove.Execute(); err != nil {
 		t.Fatalf("favorite remove error = %v", err)

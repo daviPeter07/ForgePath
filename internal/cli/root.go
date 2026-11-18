@@ -60,11 +60,11 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	command.AddCommand(newConfiguredPickCommand(scan, statePath, configPath))
 	command.AddCommand(newScanCommand(scan))
 	command.AddCommand(newOpenCommand(action.OpenEditor, configPath, statePath))
-	command.AddCommand(newRevealCommand(action.OpenFolder, statePath))
+	command.AddCommand(newRevealCommand(action.OpenFolder, configPath, statePath))
 	command.AddCommand(newRunCommand(configPath, action.RunCommand, statePath))
 	command.AddCommand(newConfigCommand(configPath))
 	command.AddCommand(newWorkspaceCommand(configPath))
-	command.AddCommand(newFavoriteCommand(statePath))
+	command.AddCommand(newFavoriteCommand(statePath, configPath))
 	command.AddCommand(newRecentCommand(statePath))
 
 	return command

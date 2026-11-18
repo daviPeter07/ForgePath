@@ -2,12 +2,15 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	appconfig "github.com/daviPeter07/forgepath/internal/config"
+	"github.com/daviPeter07/forgepath/internal/detector"
+	"github.com/daviPeter07/forgepath/internal/scanner"
 	"github.com/spf13/cobra"
 )
 
@@ -62,9 +65,34 @@ func newWorkspaceAddCommand(configPath configPathFunc) *cobra.Command {
 			}); err != nil {
 				return fmt.Errorf("save config %q: %w", path, err)
 			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), workspace)
-			return err
+			if _, err := fmt.Fprintln(cmd.OutOrStdout(), workspace); err != nil {
+				return err
+			}
+			describeWorkspace(cmd.ErrOrStderr(), workspace)
+			return nil
 		},
+	}
+}
+
+// describeWorkspace tells the user what ForgePath will find in a new
+// workspace. Only direct subfolders are scanned, so adding a project folder
+// itself (instead of the folder that contains it) is a common mistake.
+func describeWorkspace(out io.Writer, workspace string) {
+	projects, err := scanner.Scan(workspace)
+	if err != nil {
+		return
+	}
+	switch {
+	case len(projects) == 1:
+		_, _ = fmt.Fprintln(out, "1 project found")
+	case len(projects) > 1:
+		_, _ = fmt.Fprintf(out, "%d projects found\n", len(projects))
+	default:
+		if _, isProject, err := detector.Detect(workspace); err == nil && isProject {
+			_, _ = fmt.Fprintf(out, "warning: %q is a project itself; ForgePath lists the projects inside a workspace, so add its parent folder instead: fg workspace add %q\n", workspace, filepath.Dir(workspace))
+			return
+		}
+		_, _ = fmt.Fprintf(out, "warning: no projects found directly inside %q; a workspace is the folder that contains your project folders\n", workspace)
 	}
 }
 
@@ -131,8 +159,11 @@ func newWorkspaceListCommand(configPath configPathFunc) *cobra.Command {
 	}
 }
 
+// configuredWorkspaces picks the folders to scan: an explicit workspace
+// argument, otherwise every folder in the catalog (fg workspace add),
+// otherwise the current directory.
 func configuredWorkspaces(args []string, configPath configPathFunc) ([]string, error) {
-	if len(args) <= 1 || configPath == nil {
+	if len(args) == 1 || configPath == nil {
 		workspace, err := workspaceFrom(args)
 		if err != nil {
 			return nil, err

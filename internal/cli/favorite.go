@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newFavoriteCommand(statePath statePathFunc) *cobra.Command {
+func newFavoriteCommand(statePath statePathFunc, configPath configPathFunc) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "favorite",
 		Short: "Manage favorite projects",
@@ -16,8 +16,8 @@ func newFavoriteCommand(statePath statePathFunc) *cobra.Command {
 			return cmd.Help()
 		},
 	}
-	command.AddCommand(newSetFavoriteCommand("add", true, statePath))
-	command.AddCommand(newSetFavoriteCommand("remove", false, statePath))
+	command.AddCommand(newSetFavoriteCommand("add", true, statePath, configPath))
+	command.AddCommand(newSetFavoriteCommand("remove", false, statePath, configPath))
 	command.AddCommand(&cobra.Command{
 		Use:   "list",
 		Short: "List favorite project paths",
@@ -42,13 +42,13 @@ func newFavoriteCommand(statePath statePathFunc) *cobra.Command {
 	return command
 }
 
-func newSetFavoriteCommand(use string, favorite bool, statePath statePathFunc) *cobra.Command {
+func newSetFavoriteCommand(use string, favorite bool, statePath statePathFunc, configPath configPathFunc) *cobra.Command {
 	return &cobra.Command{
 		Use:   use + " <project> [workspace]",
 		Short: use + " a favorite project",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			found, err := resolveProject(cmd.Context(), args[0], args[1:])
+			found, err := resolveProject(cmd.Context(), args[0], args[1:], configPath)
 			if err != nil {
 				return err
 			}
