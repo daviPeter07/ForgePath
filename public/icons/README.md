@@ -12,8 +12,12 @@ remote CDN.
 Product names and logos remain the property of their respective owners. The
 assets are intended only to identify the detected technology.
 
-ForgePath embeds these files in the Go binary, rasterizes each SVG to a small
-RGBA canvas, and renders the pixels with ANSI truecolor half-block characters.
+ForgePath embeds these files in the Go binary, rasterizes each SVG to an RGBA
+canvas (20×20 in the inspector panel), and renders the pixels with ANSI
+truecolor half-block characters. Before rasterizing, path arcs with packed
+flags (`a15 15 0 017.8 4.5`) are expanded because oksvg misreads them, and
+logos drawn almost entirely in black (Rust) are tinted so they stay visible on
+dark terminals.
 This keeps the original logo colors without requiring a terminal-specific
 image protocol. Text badges and Nerd Font glyphs remain available as explicit
 fallback modes.

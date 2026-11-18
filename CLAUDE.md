@@ -39,11 +39,12 @@ Flow: `cmd/fg/main.go` → `cli.NewRootCommand` → scan workspaces → decorate
   - `actionTarget` decides what `o`/`d` act on.
   - The list's own help is hidden. `footerView` draws a two-line footer (navigate / actions from `screenKeys`), and the list height is the window height minus `footerHeight`.
   - `f`, `d` and `o` are removed from or intercepted before the list's page keys, so they never page the list.
+  - `inspector.go`: from `splitMinWidth` (100) columns, `bodyView` puts an inspector panel next to the list (`resize` narrows the list). It describes the highlighted item per screen; with an empty list it shows the current folder or onboarding. The panel is as tall as its content.
   - Optional behavior comes in through `Options`: `ToggleFavorite` (the `f` key is hidden without it), `Hint` (status message on start) and `Now` (clock for "2h ago").
   - Any `*Model` method that changes `m.list` (status messages, items) must use a pointer receiver. With a value receiver the change lands on a copy and is lost; this once hid every error message.
   - Row rendering: inner lipgloss styles end with a reset, so the selected row's background has to be carried into every segment (`newRowStyles`). `rowContainer` keeps selected and unselected rows the same width.
 - **`internal/ide`**: discovers installed IDEs (PATH, JetBrains Toolbox, Snap, Flatpak, `/Applications`, Windows install dirs) and ranks them per technology.
-- **`internal/icon`** + **`public/icons`**: Devicon SVGs are `go:embed`ded (`public/icons/assets.go`) and rasterized to ANSI half-block truecolor (`oksvg`/`rasterx`). Modes: `auto`, `graphics`, `ascii`, `nerd-font`.
+- **`internal/icon`** + **`public/icons`**: Devicon SVGs are `go:embed`ded (`public/icons/assets.go`) and rasterized to ANSI half-block truecolor (`oksvg`/`rasterx`) by `GraphicSized`. `normalizeArcFlags` must run before oksvg: packed arc flags otherwise erase shapes (the TS letters, the Swift bird). Modes: `auto` (graphics on truecolor, else ascii), `graphics`, `ascii`, `nerd-font`. Logos are only drawn in the TUI inspector; list rows always use text badges or Nerd Font glyphs, because 8 px logos are illegible.
 
 ### Cross-cutting changes
 
