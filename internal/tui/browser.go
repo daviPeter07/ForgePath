@@ -105,7 +105,8 @@ func renderItemBlock(writer io.Writer, model list.Model, index int, badge, title
 	styles := newRowStyles(selected)
 	width := max(model.Width()-4, 1)
 	lineWidth := max(width-2, 1)
-	content := ansi.Truncate(badge+styles.base.Render("  ")+styles.name.Render(title), lineWidth, "…") + "\n" +
+	name := highlightMatches(title, model.MatchesForItem(index), 0, styles.name)
+	content := ansi.Truncate(badge+styles.base.Render("  ")+name, lineWidth, "…") + "\n" +
 		ansi.Truncate(styles.meta.Render(description), lineWidth, "…")
 	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 2).Render(content))
 }

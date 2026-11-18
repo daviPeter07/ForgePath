@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -202,7 +203,7 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 
 	width := max(model.Width()-4, 1)
 	lineWidth := max(width-2, 1)
-	title := styles.name.Render(safeTerminalText(item.project.Name))
+	title := highlightMatches(safeTerminalText(item.project.Name), model.MatchesForItem(index), 0, styles.name)
 	if model.Width() >= 20 {
 		title = iconStyle.Render(iconLabel) + styles.base.Render("  ") + title
 	}
@@ -215,6 +216,22 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 	description := renderSubtitle(item, styles, delegate.compact)
 	content := ansi.Truncate(title, lineWidth, "…") + "\n" + ansi.Truncate(description, lineWidth, "…")
 	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 2).Render(content))
+}
+
+// highlightMatches styles the runes of text that the fuzzy filter matched.
+// matches index runes of the item's FilterValue, where text starts at offset.
+func highlightMatches(text string, matches []int, offset int, base lipgloss.Style) string {
+	length := utf8.RuneCountInString(text)
+	var indices []int
+	for _, match := range matches {
+		if match >= offset && match < offset+length {
+			indices = append(indices, match-offset)
+		}
+	}
+	if len(indices) == 0 {
+		return base.Render(text)
+	}
+	return lipgloss.StyleRunes(text, indices, base.Underline(true).Foreground(palette.favorite), base)
 }
 
 // rowStyles carries the selection background into every segment, because each
