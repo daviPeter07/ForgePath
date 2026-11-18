@@ -248,6 +248,10 @@ fg workspace add D:\Clientes
 fg workspace list
 ```
 
+Um workspace é a pasta que *contém* as pastas dos seus projetos: o ForgePath analisa as subpastas diretas dela. O `fg workspace add` informa quantos projetos encontrou e avisa quando a pasta está vazia ou é ela própria um projeto.
+
+Com pelo menos um workspace configurado, `fg`, `list` e `pick` mostram os projetos de todos os workspaces, e `open`, `reveal`, `run` e `favorite` encontram um projeto pelo nome em qualquer um deles. Sem workspaces, o ForgePath usa o diretório atual. Informe um workspace como argumento para limitar o comando a uma pasta; é assim também que se escolhe um projeto cujo nome existe em mais de um workspace.
+
 ```bash
 fg
 ```
@@ -283,6 +287,7 @@ O ForgePath verifica o `PATH` e locais comuns de instalação. A descoberta cobr
 | `o` | Exibe IDEs compatíveis cuja instalação foi verificada |
 | `d` | Gera um `docker-compose.yml` a partir de um modelo (nunca substitui um arquivo Compose existente) |
 | `c` | Fecha o ForgePath e muda o shell para o diretório exibido |
+| `f` | Adiciona ou remove o projeto selecionado dos favoritos (lista de projetos) |
 | `Esc` | Fecha a pesquisa ou retorna à tela interna anterior |
 | `q` / `Ctrl+C` | Encerra sem alterar o diretório do shell |
 
@@ -353,7 +358,7 @@ fg favorite list
 fg recent
 ```
 
-Os favoritos são exibidos primeiro no seletor, seguidos pelos projetos usados recentemente. Use `--state <caminho>` ou `FORGEPATH_STATE` para substituir o local do arquivo de estado.
+Os favoritos são exibidos primeiro no seletor, seguidos pelos projetos usados recentemente, que mostram quando foram abertos pela última vez (por exemplo `2h ago`). Pressione `f` no seletor para marcar ou desmarcar um favorito sem sair dele. Use `--state <caminho>` ou `FORGEPATH_STATE` para substituir o local do arquivo de estado.
 
 Use `--cache <diretório>` ou `FORGEPATH_CACHE` para substituir o local do cache de projetos.
 
