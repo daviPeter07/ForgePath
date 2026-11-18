@@ -281,6 +281,7 @@ O ForgePath verifica o `PATH` e locais comuns de instalação. A descoberta cobr
 | `Enter` | Entra no projeto/diretório selecionado ou inicia a IDE selecionada |
 | `Backspace` / `←` | Volta ao diretório pai ou à lista de projetos sem fechar o ForgePath |
 | `o` | Exibe IDEs compatíveis cuja instalação foi verificada |
+| `d` | Gera um `docker-compose.yml` a partir de um modelo (nunca substitui um arquivo Compose existente) |
 | `c` | Fecha o ForgePath e muda o shell para o diretório exibido |
 | `Esc` | Fecha a pesquisa ou retorna à tela interna anterior |
 | `q` / `Ctrl+C` | Encerra sem alterar o diretório do shell |

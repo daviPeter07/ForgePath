@@ -14,35 +14,28 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/daviPeter07/forgepath/internal/detector"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/project"
 )
 
-var selectKey = key.NewBinding(
-	key.WithKeys("enter"),
-	key.WithHelp("enter", "browse"),
+// Each screen advertises only the keys that do something on it, and Enter is
+// described by what it actually does there.
+var (
+	browseKey   = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "browse"))
+	openKey     = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open"))
+	generateKey = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "generate"))
+	chooseKey   = key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "cd here"))
+	editorKey   = key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open IDE"))
+	dockerKey   = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "compose"))
+	backKey     = key.NewBinding(key.WithKeys("backspace", "left"), key.WithHelp("←", "back"))
 )
 
-var chooseKey = key.NewBinding(
-	key.WithKeys("c"),
-	key.WithHelp("c", "cd here"),
-)
-
-var editorKey = key.NewBinding(
-	key.WithKeys("o"),
-	key.WithHelp("o", "open IDE"),
-)
-
-var dockerKey = key.NewBinding(
-	key.WithKeys("d"),
-	key.WithHelp("d", "docker compose"),
-)
-
-var backKey = key.NewBinding(
-	key.WithKeys("backspace", "left"),
-	key.WithHelp("←/backspace", "back"),
-)
+var screenKeys = map[screenMode][]key.Binding{
+	projectScreen:   {browseKey, chooseKey, editorKey, dockerKey},
+	directoryScreen: {browseKey, chooseKey, editorKey, dockerKey, backKey},
+	editorScreen:    {openKey, chooseKey, backKey},
+	dockerScreen:    {generateKey, backKey},
+}
 
 var palette = struct {
 	primary  color.Color
@@ -51,6 +44,9 @@ var palette = struct {
 	text     color.Color
 	muted    color.Color
 	favorite color.Color
+	ink      color.Color
+	danger   color.Color
+	success  color.Color
 }{
 	primary:  lipgloss.Color("#A855F7"),
 	bright:   lipgloss.Color("#D8B4FE"),
@@ -58,6 +54,48 @@ var palette = struct {
 	text:     lipgloss.Color("#F7F2FF"),
 	muted:    lipgloss.Color("#A99DB8"),
 	favorite: lipgloss.Color("#FACC15"),
+	ink:      lipgloss.Color("#17111F"),
+	danger:   lipgloss.Color("#EF4444"),
+	success:  lipgloss.Color("#22C55E"),
+}
+
+const breadcrumbSeparator = " › "
+
+// renderTitle draws the header as a brand chip followed by a breadcrumb.
+func renderTitle(crumb string) string {
+	brand := lipgloss.NewStyle().Bold(true).Foreground(palette.ink).Background(palette.primary).Padding(0, 1).Render("◆ FORGEPATH")
+	trail := lipgloss.NewStyle().Bold(true).Foreground(palette.bright).Background(palette.surface).Padding(0, 1).Render(safeTerminalText(crumb))
+	return brand + trail
+}
+
+// breadcrumb names path relative to base ("app › src › api"). Deep paths keep
+// the base and the last two segments so the header stays on one line.
+func breadcrumb(base, path string) string {
+	if base != "" {
+		relative, err := filepath.Rel(base, path)
+		if err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			parts := []string{filepath.Base(base)}
+			if relative != "." {
+				parts = append(parts, strings.Split(relative, string(filepath.Separator))...)
+			}
+			if len(parts) > 4 {
+				parts = append([]string{parts[0], "…"}, parts[len(parts)-2:]...)
+			}
+			return strings.Join(parts, breadcrumbSeparator)
+		}
+	}
+	return truncateStart(path, maxCrumbWidth)
+}
+
+const maxCrumbWidth = 60
+
+// truncateStart keeps the end of value, the most specific part of a path.
+func truncateStart(value string, width int) string {
+	runes := []rune(value)
+	if len(runes) <= width {
+		return value
+	}
+	return "…" + string(runes[len(runes)-width+1:])
 }
 
 type projectItem struct {
@@ -103,103 +141,108 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 		}
 	}
 
+	selected := index == model.Index()
+	styles := newRowStyles(selected)
 	iconLabel := icon.Label(item.project.Technology, item.icons)
 	if iconLabel == "" {
 		iconLabel = "◆"
 	}
-	iconStyle := lipgloss.NewStyle().Bold(true).Foreground(technologyColor(item.project.Technology))
+	iconStyle := styles.base.Bold(true).Foreground(technologyColor(item.project.Technology))
 	if item.icons != icon.ModeNerdFont {
-		iconStyle = iconStyle.
+		iconStyle = lipgloss.NewStyle().
+			Bold(true).
 			Foreground(technologyBadgeTextColor(item.project.Technology)).
 			Background(technologyColor(item.project.Technology)).
 			Padding(0, 1)
 	}
-	nameStyle := lipgloss.NewStyle().Bold(true).Foreground(palette.text)
-	metaStyle := lipgloss.NewStyle().Foreground(palette.muted)
 
-	compact := model.Width() < 20
-	title := nameStyle.Render(safeTerminalText(item.project.Name))
-	if !compact {
-		title = iconStyle.Render(iconLabel) + "  " + title
+	width := max(model.Width()-4, 1)
+	lineWidth := max(width-2, 1)
+	title := styles.name.Render(safeTerminalText(item.project.Name))
+	if model.Width() >= 20 {
+		title = iconStyle.Render(iconLabel) + styles.base.Render("  ") + title
 	}
 	if item.project.Favorite {
-		title = lipgloss.NewStyle().Foreground(palette.favorite).Render("★") + "  " + title
+		title = styles.star.Render("★") + styles.base.Render("  ") + title
 	}
+	description := styles.meta.Render(safeTerminalText(projectSubtitle(item)))
+	content := ansi.Truncate(title, lineWidth, "…") + "\n" + ansi.Truncate(description, lineWidth, "…")
+	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 2).Render(content))
+}
+
+// rowStyles carries the selection background into every segment, because each
+// inner style ends with a reset that would otherwise clear the row background.
+type rowStyles struct {
+	base lipgloss.Style
+	name lipgloss.Style
+	meta lipgloss.Style
+	star lipgloss.Style
+}
+
+func newRowStyles(selected bool) rowStyles {
+	base := lipgloss.NewStyle()
+	if selected {
+		base = base.Background(palette.surface)
+	}
+	return rowStyles{
+		base: base,
+		name: base.Bold(true).Foreground(palette.text),
+		meta: base.Foreground(palette.muted),
+		star: base.Bold(true).Foreground(palette.favorite),
+	}
+}
+
+// rowContainer gives selected and unselected rows the same geometry: a left
+// border that is only visible on the selected row.
+func rowContainer(selected bool, width, height int) lipgloss.Style {
+	style := lipgloss.NewStyle().
+		Width(width).
+		MaxWidth(width).
+		MaxHeight(height).
+		BorderLeft(true).
+		PaddingLeft(1)
+	if selected {
+		return style.
+			Background(palette.surface).
+			BorderStyle(lipgloss.ThickBorder()).
+			BorderForeground(palette.primary)
+	}
+	return style.BorderStyle(lipgloss.HiddenBorder())
+}
+
+// projectSubtitle is the metadata line under a project name, followed by the
+// folder that contains the project.
+func projectSubtitle(item projectItem) string {
 	description := item.Description()
-	if parent := filepath.Base(filepath.Dir(item.project.Path)); parent != "." && parent != "" {
+	if parent := filepath.Base(filepath.Dir(item.project.Path)); parent != "." && parent != "" && parent != string(filepath.Separator) {
 		description += "  ·  " + parent
 	}
-	description = safeTerminalText(description)
-
-	width := model.Width() - 4
-	if width < 1 {
-		width = 1
-	}
-	lineWidth := width - 2
-	if lineWidth < 1 {
-		lineWidth = 1
-	}
-	content := ansi.Truncate(title, lineWidth, "…") + "\n" + ansi.Truncate(metaStyle.Render(description), lineWidth, "…")
-	container := lipgloss.NewStyle().Width(width).MaxWidth(width).MaxHeight(2).PaddingLeft(2)
-	if index == model.Index() {
-		container = container.
-			Bold(true).
-			Foreground(palette.bright).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderLeft(true).
-			BorderForeground(palette.primary).
-			PaddingLeft(1)
-	}
-	_, _ = fmt.Fprint(writer, container.Render(content))
+	return description
 }
 
 func renderGraphicProjectItem(writer io.Writer, model list.Model, index int, item projectItem, graphic string) {
-	name := safeTerminalText(item.project.Name)
-	if item.project.Favorite {
-		name = "★  " + name
-	}
-	description := item.Description()
-	if parent := filepath.Base(filepath.Dir(item.project.Path)); parent != "." && parent != "" {
-		description += "  ·  " + parent
-	}
-	description = safeTerminalText(description)
+	selected := index == model.Index()
+	styles := newRowStyles(selected)
+	const gap = 2
+	width := max(model.Width()-4, 1)
+	graphicWidth := lipgloss.Width(graphic)
+	textWidth := max(width-2-graphicWidth-gap, 1)
 
-	outerWidth := model.Width() - 4
-	if outerWidth < 1 {
-		outerWidth = 1
+	prefix, prefixWidth := "", 0
+	if item.project.Favorite {
+		prefix, prefixWidth = styles.star.Render("★")+styles.base.Render(" "), 2
 	}
-	innerWidth := outerWidth - 1
-	if innerWidth < 1 {
-		innerWidth = 1
+	name := ansi.Truncate(safeTerminalText(item.project.Name), max(textWidth-prefixWidth, 1), "…")
+	description := ansi.Truncate(safeTerminalText(projectSubtitle(item)), textWidth, "…")
+
+	line := styles.base.Width(textWidth)
+	lines := []string{line.Render(prefix + styles.name.Render(name)), line.Render(styles.meta.Render(description))}
+	for len(lines) < lipgloss.Height(graphic) {
+		lines = append(lines, line.Render("")) // fill the icon height so the selection band is solid
 	}
-	textWidth := innerWidth - 10
-	if textWidth < 1 {
-		textWidth = 1
-	}
-	name = ansi.Truncate(name, textWidth, "…")
-	description = ansi.Truncate(description, textWidth, "…")
-	text := lipgloss.NewStyle().Bold(true).Foreground(palette.text).Render(name) + "\n" +
-		lipgloss.NewStyle().Foreground(palette.muted).Render(description)
-	if index == model.Index() {
-		nameLine := lipgloss.NewStyle().Bold(true).Foreground(palette.text).Background(palette.surface).Width(textWidth).Render(name)
-		descriptionLine := lipgloss.NewStyle().Foreground(palette.muted).Background(palette.surface).Width(textWidth).Render(description)
-		blankLine := lipgloss.NewStyle().Background(palette.surface).Width(textWidth).Render("")
-		text = nameLine + "\n" + descriptionLine + "\n" + blankLine + "\n" + blankLine
-	}
-	content := lipgloss.JoinHorizontal(lipgloss.Top, graphic, "  ", text)
-	container := lipgloss.NewStyle().Width(innerWidth).MaxWidth(innerWidth).MaxHeight(4)
-	if index == model.Index() {
-		container = lipgloss.NewStyle().
-			Width(outerWidth).
-			MaxWidth(outerWidth).
-			MaxHeight(4).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderLeft(true).
-			BorderForeground(palette.primary)
-		_, _ = fmt.Fprint(writer, container.Render(content))
-		return
-	}
-	_, _ = fmt.Fprint(writer, " "+container.Render(content))
+	text := strings.Join(lines, "\n")
+	content := lipgloss.JoinHorizontal(lipgloss.Top, graphic, styles.base.Render(strings.Repeat(" ", gap)), text)
+	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 4).Render(content))
 }
 
 func technologyColor(technology project.Technology) color.Color {
@@ -277,6 +320,9 @@ type Model struct {
 	editorProject  project.Project
 	editorRequest  uint64
 	editorOpening  bool
+	// parentProjects holds the enclosing projects while browsing into a nested
+	// project, so going back restores the right root and IDE suggestions.
+	parentProjects []project.Project
 	selected       project.Project
 	hasSelection   bool
 	cancelled      bool
@@ -293,61 +339,24 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 	if options.Context == nil {
 		options.Context = context.Background()
 	}
-	items := make([]list.Item, len(projects))
-	for index, found := range projects {
-		items[index] = projectItem{project: found, icons: options.Icons}
-	}
-
-	projectList := list.New(items, projectDelegate{graphics: options.Icons == icon.ModeGraphics}, 80, 24)
-	projectList.Title = "  FORGEPATH  /  PROJECT SWITCHER  "
-	projectList.SetStatusBarItemName("project", "projects")
-	projectList.Styles.Title = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(palette.text).
-		Background(palette.primary).
-		Padding(0, 1)
+	projectList := list.New(nil, projectDelegate{graphics: options.Icons == icon.ModeGraphics}, 80, 24)
+	projectList.Styles.Title = lipgloss.NewStyle()
 	projectList.Styles.DefaultFilterCharacterMatch = lipgloss.NewStyle().
 		Bold(true).
-		Foreground(palette.bright)
-	projectList.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{selectKey, chooseKey, editorKey, dockerKey, backKey}
-	}
-	projectList.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{selectKey, chooseKey, editorKey, dockerKey, backKey}
-	}
+		Underline(true).
+		Foreground(palette.favorite)
 	projectList.StatusMessageLifetime = 5 * time.Second
+	// Short cursor labels leave room in the help bar for the screen actions.
+	projectList.KeyMap.CursorUp.SetHelp("↑", "up")
+	projectList.KeyMap.CursorDown.SetHelp("↓", "down")
 
 	model := Model{list: projectList, projects: append([]project.Project(nil), projects...), options: options}
 	if len(projects) == 0 && options.StartPath != "" {
-		// Initialize directly
-		directories, err := options.ReadDirectories(options.StartPath)
-		if err == nil {
-			model.mode = directoryScreen
-			model.setProjectDelegate(model.list.Width())
-			model.currentPath = options.StartPath
-			model.list.Title = "  FORGEPATH  /  " + safeTerminalText(filepath.Base(options.StartPath)) + "  "
-			model.list.SetStatusBarItemName("item", "items")
-			items := make([]list.Item, 0, len(directories))
-			for _, directory := range directories {
-				result, found, err := detector.Detect(directory.Path)
-				if err == nil && found {
-					p := project.Project{
-						Name:            directory.Name,
-						Path:            directory.Path,
-						Technology:      result.Technology,
-						Markers:         result.Markers,
-						Frameworks:      result.Frameworks,
-						PackageManagers: result.PackageManagers,
-						HasDocker:       result.HasDocker,
-					}
-					items = append(items, projectItem{project: p, icons: options.Icons})
-				} else {
-					items = append(items, directoryItem{directory: directory})
-				}
-			}
-			model.list.SetItems(items)
+		if _, err := model.showDirectory(options.StartPath); err == nil {
+			return model
 		}
 	}
+	model.showProjects()
 	return model
 }
 
@@ -376,7 +385,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		if message.err != nil {
 			return m, tea.Batch(command, m.newErrorMessage(fmt.Errorf("could not open %s: %w", message.editor, message.err)))
 		}
-		return m, tea.Batch(command, m.list.NewStatusMessage(safeTerminalText("Opened "+filepath.Base(message.path)+" in "+message.editor)))
+		return m, tea.Batch(command, m.newSuccessMessage("Opened "+filepath.Base(message.path)+" in "+message.editor))
 	case tea.KeyPressMsg:
 		if message.String() == "ctrl+c" {
 			m.cancelled = true
@@ -446,14 +455,27 @@ func (m Model) Cancelled() bool {
 	return m.cancelled
 }
 
-func (m Model) newErrorMessage(err error) tea.Cmd {
+// newErrorMessage must use a pointer receiver: the status message is stored in
+// the list, and a value receiver would drop it with the copy.
+func (m *Model) newErrorMessage(err error) tea.Cmd {
 	msg := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#17111F")).
-		Background(lipgloss.Color("#EF4444")). // Red background
+		Foreground(palette.ink).
+		Background(palette.danger).
 		Padding(0, 1).
 		Render("ERROR") + " " +
-		lipgloss.NewStyle().Foreground(lipgloss.Color("#EF4444")).Render(err.Error())
+		lipgloss.NewStyle().Foreground(palette.danger).Render(safeTerminalText(err.Error()))
+	return m.list.NewStatusMessage(msg)
+}
+
+func (m *Model) newSuccessMessage(text string) tea.Cmd {
+	msg := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(palette.ink).
+		Background(palette.success).
+		Padding(0, 1).
+		Render("OK") + " " +
+		lipgloss.NewStyle().Foreground(palette.success).Render(safeTerminalText(text))
 	return m.list.NewStatusMessage(msg)
 }
 
