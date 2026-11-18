@@ -461,7 +461,7 @@ fg -
 
 ```bash
 fg() {
-    local argument dispatch expect_value target status
+    local argument dispatch executable expect_value target status
 
     if [ "$#" -eq 1 ] && { [ "$1" = "back" ] || [ "$1" = "-" ]; }; then
         if ! popd >/dev/null 2>&1; then
@@ -499,13 +499,22 @@ fg() {
         esac
         break
     done
-    if [ "$dispatch" -eq 1 ]; then
-        command fg "$@"
-        return $?
+    # fg também é um comando interno do Bash, e `command fg` ainda executaria o
+    # comando interno; por isso o executável do ForgePath é resolvido no PATH.
+    # Cada falha é capturada com `||` para a função funcionar também com set -e.
+    executable="$(type -P fg)" || executable=""
+    if [ -z "$executable" ]; then
+        printf '%s\n' "Executável 'fg' do ForgePath não encontrado no PATH" >&2
+        return 127
     fi
 
-    target="$(command fg pick --print-path "$@")"
-    status=$?
+    if [ "$dispatch" -eq 1 ]; then
+        "$executable" "$@" || return $?
+        return 0
+    fi
+
+    status=0
+    target="$("$executable" pick --print-path "$@")" || status=$?
 
     if [ "$status" -ne 0 ]; then
         return "$status"

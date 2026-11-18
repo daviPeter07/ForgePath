@@ -43,6 +43,37 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Bash integration reaches the fg executable
+        # fg is also a Bash builtin (job control); the wrapper must run the
+        # ForgePath executable, never the builtin.
+        run: |
+          stub="$(mktemp -d)"
+          target="$(mktemp -d)"
+          printf '%s\n' '#!/usr/bin/env bash' \
+            'if [ -n "$FG_FAIL" ]; then exit 3; fi' \
+            'if [ "$1" = pick ]; then printf "%s\n" "$FG_TARGET"; else printf "binary:%s\n" "$*"; fi' > "$stub/fg"
+          chmod +x "$stub/fg"
+          export FG_TARGET="$target"
+          source shell/forgepath.sh
+
+          PATH="$stub:$PATH"
+          test "$(fg workspace add /work)" = "binary:workspace add /work"
+          test "$(fg --version)" = "binary:--version"
+          fg
+          test "$PWD" = "$target"
+
+          status=0
+          FG_FAIL=1 fg || status=$?
+          test "$status" -eq 3
+          test "$PWD" = "$target"
+
+          PATH="/usr/bin:/bin"
+          if fg list 2>/dev/null; then
+            echo "fg list succeeded without a ForgePath executable" >&2
+            exit 1
+          fi
+          fg list 2>&1 | grep -q "ForgePath executable"
+
       - name: Validate PowerShell integration
         shell: pwsh
         run: |

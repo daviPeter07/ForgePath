@@ -461,7 +461,7 @@ fg -
 
 ```bash
 fg() {
-    local argument dispatch expect_value target status
+    local argument dispatch executable expect_value target status
 
     if [ "$#" -eq 1 ] && { [ "$1" = "back" ] || [ "$1" = "-" ]; }; then
         if ! popd >/dev/null 2>&1; then
@@ -499,13 +499,22 @@ fg() {
         esac
         break
     done
-    if [ "$dispatch" -eq 1 ]; then
-        command fg "$@"
-        return $?
+    # fg is also a Bash builtin, and `command fg` would still run the builtin,
+    # so resolve the ForgePath executable from PATH explicitly.
+    # Every failure is captured with `||` so the wrapper also works under set -e.
+    executable="$(type -P fg)" || executable=""
+    if [ -z "$executable" ]; then
+        printf '%s\n' "ForgePath executable 'fg' was not found in PATH" >&2
+        return 127
     fi
 
-    target="$(command fg pick --print-path "$@")"
-    status=$?
+    if [ "$dispatch" -eq 1 ]; then
+        "$executable" "$@" || return $?
+        return 0
+    fi
+
+    status=0
+    target="$("$executable" pick --print-path "$@")" || status=$?
 
     if [ "$status" -ne 0 ]; then
         return "$status"
