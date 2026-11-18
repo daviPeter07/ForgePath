@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/daviPeter07/forgepath/internal/git"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/ide"
 	"github.com/daviPeter07/forgepath/internal/project"
@@ -158,6 +160,7 @@ const factKeyWidth = 10
 func (m Model) projectFacts(found project.Project, valueWidth int) []fact {
 	var facts []fact
 	facts = append(facts, fact{"branch", gitSummary(found)})
+	facts = append(facts, m.gitFacts(found)...)
 	var tooling []string
 	for _, manager := range found.PackageManagers {
 		tooling = append(tooling, string(manager))
@@ -179,6 +182,82 @@ func (m Model) projectFacts(found project.Project, valueWidth int) []fact {
 	}
 	if len(found.Markers) > 0 {
 		facts = append(facts, fact{"found by", safeTerminalText(strings.Join(found.Markers, ", "))})
+	}
+	return facts
+}
+
+type gitDetailsEntry struct {
+	loading bool
+	details git.Details
+	err     error
+}
+
+type gitDetailsMsg struct {
+	path    string
+	details git.Details
+	err     error
+}
+
+// requestGitDetails starts loading the highlighted project's commits and
+// remote state when the inspector is visible and they are not cached yet.
+// The cache map is shared by every copy of the model.
+func (m Model) requestGitDetails() tea.Cmd {
+	if !m.splitLayout() || m.options.GitDetails == nil {
+		return nil
+	}
+	item, ok := m.list.SelectedItem().(projectItem)
+	if !ok || item.project.GitBranch == "" {
+		return nil
+	}
+	path := item.project.Path
+	if _, known := m.gitDetails[path]; known {
+		return nil
+	}
+	m.gitDetails[path] = &gitDetailsEntry{loading: true}
+	load, ctx := m.options.GitDetails, m.options.Context
+	return func() tea.Msg {
+		details, err := load(ctx, path)
+		return gitDetailsMsg{path: path, details: details, err: err}
+	}
+}
+
+// gitFacts are the remote and commit lines for a project, once loaded.
+func (m Model) gitFacts(found project.Project) []fact {
+	entry := m.gitDetails[found.Path]
+	if entry == nil || entry.err != nil {
+		return nil
+	}
+	if entry.loading {
+		return []fact{{"commits", mutedStyle().Render("loading…")}}
+	}
+	details := entry.details
+	var facts []fact
+	upstream := safeTerminalText(details.Upstream)
+	switch {
+	case details.Upstream == "":
+		facts = append(facts, fact{"remote", mutedStyle().Render("no upstream branch")})
+	case details.Ahead == 0 && details.Behind == 0:
+		facts = append(facts, fact{"remote", "in sync with " + upstream})
+	default:
+		var parts []string
+		if details.Ahead > 0 {
+			parts = append(parts, lipgloss.NewStyle().Foreground(palette.success).Render("↑"+strconv.Itoa(details.Ahead)+" to push"))
+		}
+		if details.Behind > 0 {
+			parts = append(parts, lipgloss.NewStyle().Foreground(palette.changed).Render("↓"+strconv.Itoa(details.Behind)+" to pull"))
+		}
+		facts = append(facts, fact{"remote", strings.Join(parts, mutedStyle().Render(" · ")) + mutedStyle().Render("  "+upstream)})
+	}
+	for index, commit := range details.Commits {
+		key := ""
+		if index == 0 {
+			key = "commits"
+		}
+		line := mutedStyle().Render(safeTerminalText(commit.Hash)) + " " + safeTerminalText(commit.Subject)
+		if when := relativeTime(commit.When, m.options.Now()); when != "" {
+			line += mutedStyle().Render(" · " + when)
+		}
+		facts = append(facts, fact{key, line})
 	}
 	return facts
 }

@@ -16,6 +16,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daviPeter07/forgepath/internal/detector"
+	"github.com/daviPeter07/forgepath/internal/git"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/ide"
 	"github.com/daviPeter07/forgepath/internal/project"
@@ -52,6 +53,9 @@ type Options struct {
 	Hint string
 	// Now is the clock used for "opened 2h ago" labels.
 	Now func() time.Time
+	// GitDetails loads recent commits and remote sync state for the inspector.
+	// It runs in the background, once per project.
+	GitDetails func(context.Context, string) (git.Details, error)
 }
 
 type directoryItem struct {

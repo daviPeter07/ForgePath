@@ -435,6 +435,7 @@ type Model struct {
 	width, height int
 	home          string
 	previews      map[string][]previewEntry
+	gitDetails    map[string]*gitDetailsEntry
 }
 
 func NewModel(projects []project.Project, icons icon.Mode) Model {
@@ -467,11 +468,12 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 
 	home, _ := os.UserHomeDir()
 	model := Model{
-		list:     projectList,
-		projects: append([]project.Project(nil), projects...),
-		options:  options,
-		home:     home,
-		previews: map[string][]previewEntry{},
+		list:       projectList,
+		projects:   append([]project.Project(nil), projects...),
+		options:    options,
+		home:       home,
+		previews:   map[string][]previewEntry{},
+		gitDetails: map[string]*gitDetailsEntry{},
 	}
 	if len(projects) == 0 && options.StartPath != "" {
 		if _, err := model.showDirectory(options.StartPath); err != nil {
@@ -491,6 +493,16 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	if loaded, ok := message.(gitDetailsMsg); ok {
+		m.gitDetails[loaded.path] = &gitDetailsEntry{details: loaded.details, err: loaded.err}
+		return m, nil
+	}
+	updated, command := m.update(message)
+	next := updated.(Model)
+	return next, tea.Batch(command, next.requestGitDetails())
+}
+
+func (m Model) update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch message := message.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = message.Width, message.Height

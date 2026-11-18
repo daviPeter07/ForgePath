@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/daviPeter07/forgepath/internal/action"
+	gitinfo "github.com/daviPeter07/forgepath/internal/git"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/ide"
 	"github.com/daviPeter07/forgepath/internal/project"
@@ -90,6 +91,7 @@ func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool,
 		IDEs:           ide.Discover(),
 		StartPath:      startPath,
 		ToggleFavorite: favoriteToggler(statePath),
+		GitDetails:     gitinfo.LoadDetails,
 		Hint:           pickerHint(args, configPath),
 		OpenEditor: func(ctx context.Context, path string, selectedProject project.Project, editor ide.IDE) error {
 			if err := action.OpenEditorWithArguments(ctx, path, editor.Executable, editor.Arguments); err != nil {
