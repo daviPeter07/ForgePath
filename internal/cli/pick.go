@@ -44,6 +44,7 @@ func newPickCommandWithScanner(scan scanProjectsFunc, statePaths ...statePathFun
 	}
 	command.Flags().Bool("print-path", false, "print only the selected project path")
 	command.Flags().StringVar(&iconMode, "icons", string(icon.ModeAuto), "icon mode: auto, graphics, ascii, or nerd-font")
+	command.Flags().String("theme", "", themeFlagUsage)
 	command.Flags().BoolVar(&refresh, "refresh", false, "ignore and rebuild the project cache")
 
 	return command
@@ -67,6 +68,10 @@ func newConfiguredPickCommand(scan scanProjectsFunc, statePath statePathFunc, co
 
 func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool, scan scanProjectsFunc, statePath statePathFunc, configPaths ...configPathFunc) error {
 	icons = icon.ResolveMode(icons, cmd.ErrOrStderr())
+	theme, err := pickerTheme(cmd, firstConfigPath(configPaths))
+	if err != nil {
+		return err
+	}
 	var configPath configPathFunc
 	if len(configPaths) > 0 {
 		configPath = configPaths[0]
@@ -92,6 +97,7 @@ func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool,
 		StartPath:      startPath,
 		ToggleFavorite: favoriteToggler(statePath),
 		GitDetails:     gitinfo.LoadDetails,
+		Theme:          theme,
 		Hint:           pickerHint(args, configPath),
 		OpenEditor: func(ctx context.Context, path string, selectedProject project.Project, editor ide.IDE) error {
 			if err := action.OpenEditorWithArguments(ctx, path, editor.Executable, editor.Arguments); err != nil {
@@ -182,4 +188,30 @@ func pickerHint(args []string, configPath configPathFunc) string {
 		return ""
 	}
 	return "fg workspace add <folder> lists your projects from anywhere"
+}
+
+const themeFlagUsage = "color theme: auto, dark, light, or dracula (default: config theme, else auto)"
+
+func firstConfigPath(configPaths []configPathFunc) configPathFunc {
+	if len(configPaths) > 0 {
+		return configPaths[0]
+	}
+	return nil
+}
+
+// pickerTheme resolves the selector theme: the --theme flag, then the config
+// file, then auto (follow the terminal background).
+func pickerTheme(cmd *cobra.Command, configPath configPathFunc) (string, error) {
+	theme := ""
+	if flag := cmd.Flags().Lookup("theme"); flag != nil && flag.Changed {
+		theme = flag.Value.String()
+	} else if configPath != nil {
+		if _, configuration, err := editableConfiguration(configPath); err == nil {
+			theme = configuration.Theme
+		}
+	}
+	if err := tui.ValidateTheme(theme); err != nil {
+		return "", err
+	}
+	return theme, nil
 }

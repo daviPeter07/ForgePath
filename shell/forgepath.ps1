@@ -21,11 +21,11 @@ function fg {
             $expectValue = $false
             continue
         }
-        if ($argument -in @("--config", "--state", "--cache", "--icons")) {
+        if ($argument -in @("--config", "--state", "--cache", "--icons", "--theme")) {
             $expectValue = $true
             continue
         }
-        if ($argument -match '^--(config|state|cache|icons)=') {
+        if ($argument -match '^--(config|state|cache|icons|theme)=') {
             continue
         }
         if ($argument -in @("-h", "--help", "--version")) {

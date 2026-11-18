@@ -30,6 +30,7 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	command.PersistentFlags().StringVar(&configuredStatePath, "state", configuredStatePath, "state file path")
 	command.PersistentFlags().StringVar(&configuredCachePath, "cache", configuredCachePath, "project cache directory")
 	command.Flags().StringVar(&rootIconMode, "icons", string(icon.ModeAuto), "icon mode: auto, graphics, ascii, or nerd-font")
+	command.Flags().String("theme", "", themeFlagUsage)
 	command.Flags().BoolVar(&rootRefresh, "refresh", false, "ignore and rebuild the project cache")
 	configPath := func() (string, error) {
 		return resolveConfigPath(configuredPath)

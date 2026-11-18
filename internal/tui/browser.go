@@ -49,6 +49,8 @@ type Options struct {
 	// ToggleFavorite persists the favorite flag of a project and returns the
 	// new value. Without it the f key and its help are hidden.
 	ToggleFavorite func(project.Project) (bool, error)
+	// Theme is a theme name; empty or "auto" follows the terminal background.
+	Theme string
 	// Hint is shown as a status message when the browser opens.
 	Hint string
 	// Now is the clock used for "opened 2h ago" labels.
@@ -143,6 +145,7 @@ func ignoredBrowserDirectory(name string) bool {
 func (m *Model) setScreen(mode screenMode, crumb, singular, plural string) {
 	m.mode = mode
 	m.list.ResetFilter()
+	m.crumb = crumb
 	m.list.Title = renderTitle(crumb)
 	m.list.SetStatusBarItemName(singular, plural)
 	m.list.SetDelegate(projectDelegate{compact: m.splitLayout()})

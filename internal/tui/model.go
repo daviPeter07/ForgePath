@@ -94,31 +94,8 @@ func renderKeyLine(label string, bindings []key.Binding) string {
 	return "  " + labelStyle.Render(label) + strings.Join(parts, descriptionStyle.Render(" · "))
 }
 
-var palette = struct {
-	primary  color.Color
-	bright   color.Color
-	surface  color.Color
-	text     color.Color
-	muted    color.Color
-	favorite color.Color
-	ink      color.Color
-	danger   color.Color
-	success  color.Color
-	changed  color.Color
-	border   color.Color
-}{
-	primary:  lipgloss.Color("#A855F7"),
-	bright:   lipgloss.Color("#D8B4FE"),
-	surface:  lipgloss.Color("#241532"),
-	text:     lipgloss.Color("#F7F2FF"),
-	muted:    lipgloss.Color("#A99DB8"),
-	favorite: lipgloss.Color("#FACC15"),
-	ink:      lipgloss.Color("#17111F"),
-	danger:   lipgloss.Color("#EF4444"),
-	success:  lipgloss.Color("#22C55E"),
-	changed:  lipgloss.Color("#FBBF24"),
-	border:   lipgloss.Color("#4C3A63"),
-}
+// palette is the active theme; applyTheme replaces it.
+var palette = themes[ThemeDark]
 
 const breadcrumbSeparator = " › "
 
@@ -436,6 +413,7 @@ type Model struct {
 	home          string
 	previews      map[string][]previewEntry
 	gitDetails    map[string]*gitDetailsEntry
+	crumb         string
 }
 
 func NewModel(projects []project.Project, icons icon.Mode) Model {
@@ -451,6 +429,11 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 	}
 	if options.Now == nil {
 		options.Now = time.Now
+	}
+	if autoTheme(options.Theme) {
+		applyTheme(ThemeDark) // until the terminal reports its background
+	} else {
+		applyTheme(options.Theme)
 	}
 	projectList := list.New(nil, projectDelegate{}, 80, 24)
 	projectList.Styles.Title = lipgloss.NewStyle()
@@ -489,6 +472,9 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 }
 
 func (m Model) Init() tea.Cmd {
+	if autoTheme(m.options.Theme) {
+		return tea.Batch(m.initCommand, tea.RequestBackgroundColor)
+	}
 	return m.initCommand
 }
 
@@ -504,6 +490,16 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch message := message.(type) {
+	case tea.BackgroundColorMsg:
+		if autoTheme(m.options.Theme) {
+			theme := ThemeDark
+			if !message.IsDark() {
+				theme = ThemeLight
+			}
+			applyTheme(theme)
+			m.list.Title = renderTitle(m.crumb)
+		}
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width, m.height = message.Width, message.Height
 		m.resize()

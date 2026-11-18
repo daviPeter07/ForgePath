@@ -17,11 +17,11 @@ fg() {
             continue
         fi
         case "$argument" in
-            --config|--state|--cache|--icons)
+            --config|--state|--cache|--icons|--theme)
                 expect_value=1
                 continue
                 ;;
-            --config=*|--state=*|--cache=*|--icons=*)
+            --config=*|--state=*|--cache=*|--icons=*|--theme=*)
                 continue
                 ;;
             -h|--help|--version)

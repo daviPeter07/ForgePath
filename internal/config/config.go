@@ -16,6 +16,8 @@ type Config struct {
 	Workspaces []string                 `json:"workspaces,omitempty"`
 	Editor     Editor                   `json:"editor"`
 	Projects   map[string]ProjectConfig `json:"projects"`
+	// Theme is the selector theme: auto (default), dark, light or dracula.
+	Theme string `json:"theme,omitempty"`
 }
 
 type Editor struct {
