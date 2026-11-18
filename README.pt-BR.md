@@ -87,7 +87,7 @@ Os frameworks e ferramentas compatíveis incluem:
 
 * Escolher entre IDEs compatíveis instaladas sem sair do seletor
 * Abrir o diretório do projeto
-* Iniciar o ambiente de desenvolvimento
+* Iniciar o ambiente de desenvolvimento pelo seletor com `r`: o comando configurado para o projeto, ou um detectado (scripts do package.json, `artisan serve`, Django, FastAPI, Rails, Phoenix, `go run`, `cargo run`, `docker compose up`) depois de confirmá-lo
 * Executar comandos personalizados do projeto
 
 ### Integração com o shell
@@ -227,7 +227,8 @@ Exemplo:
     "mastermind": {
       "command": ["docker", "compose", "up"]
     }
-  }
+  },
+  "theme": "auto"
 }
 ```
 
@@ -289,6 +290,8 @@ O ForgePath verifica o `PATH` e locais comuns de instalação. A descoberta cobr
 | `d` | Gera um `docker-compose.yml` a partir de um modelo (nunca substitui um arquivo Compose existente) |
 | `c` | Fecha o ForgePath e muda o shell para o diretório exibido |
 | `f` | Adiciona ou remove o projeto selecionado dos favoritos (lista de projetos) |
+| `r` | Executa o comando de desenvolvimento do projeto selecionado; um comando detectado pede um segundo `r` antes. `Ctrl+C` interrompe e volta ao seletor |
+| `!` | Mostra só os projetos com mudanças não commitadas, ou todos de novo (lista de projetos) |
 | `Esc` | Fecha a pesquisa ou retorna à tela interna anterior |
 | `q` / `Ctrl+C` | Encerra sem alterar o diretório do shell |
 
@@ -340,7 +343,7 @@ Revela um projeto no Explorer, Finder ou gerenciador de arquivos do Linux.
 fg run <projeto> [workspace]
 ```
 
-Executa o comando de desenvolvimento configurado para um projeto. Os comandos são arrays de argumentos e nunca são interpretados por um shell.
+Executa o comando de desenvolvimento configurado para um projeto. Os comandos são arrays de argumentos e nunca são interpretados por um shell. No seletor, `r` executa o mesmo comando configurado, ou um detectado depois que você o confirma.
 
 No Windows, launchers `.cmd` e `.bat` são rejeitados. Configure um `.exe` real ou execute um script por meio de seu interpretador, como `node.exe` ou `php.exe`.
 
@@ -362,6 +365,21 @@ fg recent
 Os favoritos são exibidos primeiro no seletor, seguidos pelos projetos usados recentemente, que mostram quando foram abertos pela última vez (por exemplo `2h ago`). Pressione `f` no seletor para marcar ou desmarcar um favorito sem sair dele. Use `--state <caminho>` ou `FORGEPATH_STATE` para substituir o local do arquivo de estado.
 
 Use `--cache <diretório>` ou `FORGEPATH_CACHE` para substituir o local do cache de projetos.
+
+```bash
+fg clone dono/repo
+fg clone https://gitlab.com/grupo/app.git --workspace ~/work --name app-v2
+```
+
+Clona um repositório no primeiro workspace configurado (ou em `--workspace`). `dono/repo` é clonado do GitHub; qualquer URL https, ssh ou `git@host:` também funciona. O caminho novo é impresso, e uma pasta existente nunca é sobrescrita.
+
+```bash
+fg --theme dracula
+```
+
+Escolhe as cores do seletor: `auto` (padrão) acompanha o fundo do terminal com uma paleta escura ou clara; `dark`, `light` e `dracula` forçam uma delas. Defina `"theme"` no arquivo de configuração para manter a escolha.
+
+Quando o painel de inspeção está visível, ele também carrega os três últimos commits do projeto selecionado e quantos commits a branch está à frente ou atrás do upstream, a partir do último fetch (o ForgePath nunca acessa o remoto).
 
 ```bash
 fg completion powershell
