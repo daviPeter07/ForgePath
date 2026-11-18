@@ -391,7 +391,7 @@ function fg {
         return
     }
 
-    $commands = @("list", "pick", "scan", "open", "reveal", "run", "config", "workspace", "favorite", "recent", "completion", "help")
+    $commands = @("list", "pick", "scan", "open", "reveal", "run", "config", "workspace", "favorite", "recent", "clone", "completion", "help")
     $dispatch = $false
     $expectValue = $false
     foreach ($argument in $args) {
@@ -499,7 +499,7 @@ fg() {
             -*)
                 continue
                 ;;
-            list|pick|scan|open|reveal|run|config|workspace|favorite|recent|completion|help)
+            list|pick|scan|open|reveal|run|config|workspace|favorite|recent|clone|completion|help)
                 dispatch=1
                 ;;
         esac

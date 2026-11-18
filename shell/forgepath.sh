@@ -31,7 +31,7 @@ fg() {
             -*)
                 continue
                 ;;
-            list|pick|scan|open|reveal|run|config|workspace|favorite|recent|completion|help)
+            list|pick|scan|open|reveal|run|config|workspace|favorite|recent|clone|completion|help)
                 dispatch=1
                 ;;
         esac

@@ -30,7 +30,7 @@ function fg --description 'ForgePath: browse projects and cd into them'
                 break
             case '-*'
                 continue
-            case list pick scan open reveal run config workspace favorite recent completion help
+            case list pick scan open reveal run config workspace favorite recent clone completion help
                 set dispatch 1
         end
         break

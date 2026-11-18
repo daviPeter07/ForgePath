@@ -65,6 +65,7 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	command.AddCommand(newRunCommand(configPath, action.RunCommand, statePath))
 	command.AddCommand(newConfigCommand(configPath))
 	command.AddCommand(newWorkspaceCommand(configPath))
+	command.AddCommand(newCloneCommand(configPath, gitClone))
 	command.AddCommand(newFavoriteCommand(statePath, configPath))
 	command.AddCommand(newRecentCommand(statePath))
 

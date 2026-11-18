@@ -60,6 +60,7 @@ jobs:
           test "$(fg workspace add /work)" = "binary:workspace add /work"
           test "$(fg --version)" = "binary:--version"
           test "$(fg --theme light list)" = "binary:--theme light list"
+          test "$(fg clone owner/repo)" = "binary:clone owner/repo"
           fg
           test "$PWD" = "$target"
 
@@ -124,6 +125,7 @@ jobs:
           test (fg workspace add /work) = "binary:workspace add /work"; or exit 1
           test (fg --version) = "binary:--version"; or exit 1
           test (fg --theme light list) = "binary:--theme light list"; or exit 1
+          test (fg clone owner/repo) = "binary:clone owner/repo"; or exit 1
 
           fg; or exit 1
           test "$PWD" = "$FG_TARGET"; or exit 1
