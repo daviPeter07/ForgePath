@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strconv"
+	"strings"
 
 	appconfig "github.com/daviPeter07/forgepath/internal/config"
 	"github.com/daviPeter07/forgepath/internal/project"
@@ -40,7 +41,7 @@ func newOpenCommand(openEditor openEditorFunc, configPath configPathFunc, stateP
 					return fmt.Errorf("editor is required: use --editor, FORGEPATH_EDITOR, or configure editor.executable")
 				}
 			}
-			found, err := resolveProject(cmd.Context(), args[0], args[1:])
+			found, err := resolveProject(cmd.Context(), args[0], args[1:], configPath)
 			if err != nil {
 				return err
 			}
@@ -55,7 +56,7 @@ func newOpenCommand(openEditor openEditorFunc, configPath configPathFunc, stateP
 	return command
 }
 
-func newRevealCommand(openFolder openFolderFunc, statePaths ...statePathFunc) *cobra.Command {
+func newRevealCommand(openFolder openFolderFunc, configPath configPathFunc, statePaths ...statePathFunc) *cobra.Command {
 	var statePath statePathFunc
 	if len(statePaths) > 0 {
 		statePath = statePaths[0]
@@ -65,7 +66,7 @@ func newRevealCommand(openFolder openFolderFunc, statePaths ...statePathFunc) *c
 		Short: "Reveal a project in the file manager",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			found, err := resolveProject(cmd.Context(), args[0], args[1:])
+			found, err := resolveProject(cmd.Context(), args[0], args[1:], configPath)
 			if err != nil {
 				return err
 			}
@@ -78,29 +79,53 @@ func newRevealCommand(openFolder openFolderFunc, statePaths ...statePathFunc) *c
 	}
 }
 
-func resolveProject(ctx context.Context, name string, workspaceArguments []string) (project.Project, error) {
+// resolveProject finds a project by name in the workspaces chosen by
+// configuredWorkspaces. A name found in more than one workspace is an error
+// that lists the candidates, so the user can pass the workspace explicitly.
+func resolveProject(ctx context.Context, name string, workspaceArguments []string, configPath configPathFunc) (project.Project, error) {
 	if err := ctx.Err(); err != nil {
 		return project.Project{}, err
 	}
-	workspace, err := workspaceFrom(workspaceArguments)
+	workspaces, err := configuredWorkspaces(workspaceArguments, configPath)
 	if err != nil {
 		return project.Project{}, err
 	}
-	workspace, err = filepath.Abs(workspace)
-	if err != nil {
-		return project.Project{}, err
-	}
-	projects, err := scanner.Scan(workspace)
-	if err != nil {
-		return project.Project{}, err
-	}
-	for _, found := range projects {
-		if found.Name == name {
-			if err := ctx.Err(); err != nil {
+	var matches []project.Project
+	for _, workspace := range workspaces {
+		projects, err := scanner.Scan(workspace)
+		if err != nil {
+			if len(workspaces) == 1 {
 				return project.Project{}, err
 			}
-			return found, nil
+			continue
+		}
+		for _, found := range projects {
+			if found.Name == name {
+				matches = append(matches, found)
+			}
 		}
 	}
-	return project.Project{}, fmt.Errorf("project %q not found in %q", name, workspace)
+	if err := ctx.Err(); err != nil {
+		return project.Project{}, err
+	}
+	switch len(matches) {
+	case 0:
+		return project.Project{}, fmt.Errorf("project %q not found in %s", name, quotedList(workspaces))
+	case 1:
+		return matches[0], nil
+	default:
+		paths := make([]string, len(matches))
+		for index, found := range matches {
+			paths[index] = found.Path
+		}
+		return project.Project{}, fmt.Errorf("project %q exists in more than one workspace (%s); pass the workspace as the next argument", name, quotedList(paths))
+	}
+}
+
+func quotedList(values []string) string {
+	quoted := make([]string, len(values))
+	for index, value := range values {
+		quoted[index] = strconv.Quote(value)
+	}
+	return strings.Join(quoted, ", ")
 }

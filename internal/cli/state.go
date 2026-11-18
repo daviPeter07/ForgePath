@@ -52,3 +52,22 @@ func recordRecentBestEffort(cmd *cobra.Command, statePath statePathFunc, path st
 		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not record recent project: %v\n", err)
 	}
 }
+
+// favoriteToggler flips a project's favorite flag in the state file and
+// returns the new value. The TUI uses it for the f key.
+func favoriteToggler(statePath statePathFunc) func(project.Project) (bool, error) {
+	return func(target project.Project) (bool, error) {
+		if statePath == nil {
+			return target.Favorite, fmt.Errorf("favorites are unavailable")
+		}
+		path, err := statePath()
+		if err != nil {
+			return target.Favorite, err
+		}
+		favorite := !target.Favorite
+		if err := (appstate.Store{Path: path}).SetFavorite(target.Path, favorite); err != nil {
+			return target.Favorite, err
+		}
+		return favorite, nil
+	}
+}

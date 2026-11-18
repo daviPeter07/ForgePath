@@ -86,9 +86,11 @@ func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool,
 	}
 
 	selected, found, err := tui.SelectWithOptions(cmd.Context(), projects, tui.Options{
-		Icons:     icons,
-		IDEs:      ide.Discover(),
-		StartPath: startPath,
+		Icons:          icons,
+		IDEs:           ide.Discover(),
+		StartPath:      startPath,
+		ToggleFavorite: favoriteToggler(statePath),
+		Hint:           pickerHint(args, configPath),
 		OpenEditor: func(ctx context.Context, path string, selectedProject project.Project, editor ide.IDE) error {
 			if err := action.OpenEditorWithArguments(ctx, path, editor.Executable, editor.Arguments); err != nil {
 				return err
@@ -165,4 +167,17 @@ func projectRootForPath(projects []project.Project, path string) string {
 		}
 	}
 	return best
+}
+
+// pickerHint suggests building the catalog while the user still browses only
+// the current directory.
+func pickerHint(args []string, configPath configPathFunc) string {
+	if len(args) > 0 || configPath == nil {
+		return ""
+	}
+	_, configuration, err := editableConfiguration(configPath)
+	if err != nil || len(configuration.Workspaces) > 0 {
+		return ""
+	}
+	return "fg workspace add <folder> lists your projects from anywhere"
 }

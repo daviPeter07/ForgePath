@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -72,13 +73,21 @@ func TestConfiguredWorkspacesUsesConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	current, _ := os.Getwd()
 	got, err := configuredWorkspaces(nil, func() (string, error) { return path, nil })
 	if err != nil {
 		t.Fatalf("configuredWorkspaces() error = %v", err)
 	}
-	if len(got) != 1 || !sameWorkspace(got[0], current) {
-		t.Fatalf("configuredWorkspaces() = %q, want %q", got, current)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("configuredWorkspaces() = %q, want configured %q", got, want)
+	}
+
+	explicit := t.TempDir()
+	got, err = configuredWorkspaces([]string{explicit}, func() (string, error) { return path, nil })
+	if err != nil {
+		t.Fatalf("configuredWorkspaces(explicit) error = %v", err)
+	}
+	if len(got) != 1 || !sameWorkspace(got[0], explicit) {
+		t.Fatalf("configuredWorkspaces(explicit) = %q, want only %q", got, explicit)
 	}
 }
 

@@ -248,6 +248,10 @@ fg workspace add D:\Clients
 fg workspace list
 ```
 
+A workspace is the folder that *contains* your project folders: ForgePath scans its direct subfolders. `fg workspace add` reports how many projects it found, and warns when the folder is empty or is itself a project.
+
+When at least one workspace is configured, `fg`, `list` and `pick` show the projects of every workspace, and `open`, `reveal`, `run` and `favorite` find a project by name in any of them. Without workspaces, ForgePath uses the current directory. Pass a workspace argument to limit a command to one folder; this is also how to pick a project whose name exists in more than one workspace.
+
 ```bash
 fg
 ```
@@ -283,6 +287,7 @@ ForgePath checks `PATH` and common installation locations. Detection covers stan
 | `o` | Show compatible IDEs that were verified as installed |
 | `d` | Generate a `docker-compose.yml` from a template (never replaces an existing Compose file) |
 | `c` | Close ForgePath and change the shell to the directory currently displayed |
+| `f` | Add or remove the selected project from favorites (project list) |
 | `Esc` | Close search or return to the previous internal screen |
 | `q` / `Ctrl+C` | Quit without changing the shell directory |
 
@@ -353,7 +358,7 @@ fg favorite list
 fg recent
 ```
 
-Favorites are shown first in the selector, followed by recently used projects. Use `--state <path>` or `FORGEPATH_STATE` to override the state file location.
+Favorites are shown first in the selector, followed by recently used projects, which show when they were last opened (for example `2h ago`). Press `f` in the selector to toggle a favorite without leaving it. Use `--state <path>` or `FORGEPATH_STATE` to override the state file location.
 
 Use `--cache <directory>` or `FORGEPATH_CACHE` to override the project cache location.
 

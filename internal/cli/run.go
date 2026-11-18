@@ -39,7 +39,7 @@ func newRunCommand(configPath configPathFunc, runCommand runCommandFunc, statePa
 				return fmt.Errorf("project %q has no configured command", args[0])
 			}
 
-			found, err := resolveProject(cmd.Context(), args[0], args[1:])
+			found, err := resolveProject(cmd.Context(), args[0], args[1:], configPath)
 			if err != nil {
 				return err
 			}

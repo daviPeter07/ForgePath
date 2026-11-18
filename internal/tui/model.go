@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"io"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -27,14 +28,61 @@ var (
 	chooseKey   = key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "cd here"))
 	editorKey   = key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open IDE"))
 	dockerKey   = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "compose"))
+	favoriteKey = key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favorite"))
 	backKey     = key.NewBinding(key.WithKeys("backspace", "left"), key.WithHelp("←", "back"))
+	moveKey     = key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑↓", "move"))
+	filterKey   = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter"))
+	clearKey    = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear filter"))
+	quitKey     = key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit"))
+	applyKey    = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply"))
+	cancelKey   = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))
 )
 
+// screenKeys are the actions of each screen, shown on the footer's second line.
 var screenKeys = map[screenMode][]key.Binding{
-	projectScreen:   {browseKey, chooseKey, editorKey, dockerKey},
-	directoryScreen: {browseKey, chooseKey, editorKey, dockerKey, backKey},
-	editorScreen:    {openKey, chooseKey, backKey},
-	dockerScreen:    {generateKey, backKey},
+	projectScreen:   {browseKey, chooseKey, editorKey, dockerKey, favoriteKey},
+	directoryScreen: {browseKey, chooseKey, editorKey, dockerKey},
+	editorScreen:    {openKey, chooseKey},
+	dockerScreen:    {generateKey},
+}
+
+// footerHeight is the blank line plus the navigation and action lines.
+const footerHeight = 3
+
+// footerView replaces the list's one-line help with two lines, navigation and
+// actions, so every key of the screen fits without truncation.
+func (m Model) footerView() string {
+	if m.list.SettingFilter() {
+		return renderKeyLine("filter", []key.Binding{applyKey, cancelKey}) + "\n"
+	}
+	navigation := []key.Binding{moveKey, filterKey}
+	if m.list.IsFiltered() {
+		navigation = append(navigation, clearKey)
+	}
+	if m.mode != projectScreen {
+		navigation = append(navigation, backKey)
+	}
+	navigation = append(navigation, quitKey)
+
+	var actions []key.Binding
+	for _, binding := range screenKeys[m.mode] {
+		if binding.Help().Desc == "favorite" && m.options.ToggleFavorite == nil {
+			continue
+		}
+		actions = append(actions, binding)
+	}
+	return renderKeyLine("navigate", navigation) + "\n" + renderKeyLine("actions", actions)
+}
+
+func renderKeyLine(label string, bindings []key.Binding) string {
+	keyStyle := lipgloss.NewStyle().Bold(true).Foreground(palette.bright)
+	descriptionStyle := lipgloss.NewStyle().Foreground(palette.muted)
+	parts := make([]string, len(bindings))
+	for index, binding := range bindings {
+		parts[index] = keyStyle.Render(binding.Help().Key) + " " + descriptionStyle.Render(binding.Help().Desc)
+	}
+	labelStyle := lipgloss.NewStyle().Foreground(palette.primary).Width(10)
+	return "  " + labelStyle.Render(label) + strings.Join(parts, descriptionStyle.Render("  ·  "))
 }
 
 var palette = struct {
@@ -47,6 +95,7 @@ var palette = struct {
 	ink      color.Color
 	danger   color.Color
 	success  color.Color
+	changed  color.Color
 }{
 	primary:  lipgloss.Color("#A855F7"),
 	bright:   lipgloss.Color("#D8B4FE"),
@@ -57,6 +106,7 @@ var palette = struct {
 	ink:      lipgloss.Color("#17111F"),
 	danger:   lipgloss.Color("#EF4444"),
 	success:  lipgloss.Color("#22C55E"),
+	changed:  lipgloss.Color("#FBBF24"),
 }
 
 const breadcrumbSeparator = " › "
@@ -101,6 +151,7 @@ func truncateStart(value string, width int) string {
 type projectItem struct {
 	project project.Project
 	icons   icon.Mode
+	now     time.Time
 }
 
 type projectDelegate struct {
@@ -165,7 +216,7 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 	if item.project.Favorite {
 		title = styles.star.Render("★") + styles.base.Render("  ") + title
 	}
-	description := styles.meta.Render(safeTerminalText(projectSubtitle(item)))
+	description := renderSubtitle(item, styles)
 	content := ansi.Truncate(title, lineWidth, "…") + "\n" + ansi.Truncate(description, lineWidth, "…")
 	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 2).Render(content))
 }
@@ -210,14 +261,65 @@ func rowContainer(selected bool, width, height int) lipgloss.Style {
 	return style.BorderStyle(lipgloss.HiddenBorder())
 }
 
-// projectSubtitle is the metadata line under a project name, followed by the
-// folder that contains the project.
-func projectSubtitle(item projectItem) string {
-	description := item.Description()
-	if parent := filepath.Base(filepath.Dir(item.project.Path)); parent != "." && parent != "" && parent != string(filepath.Separator) {
-		description += "  ·  " + parent
+// renderSubtitle is the metadata line under a project name: technology in its
+// color, tooling, Git branch (● when it has uncommitted changes), the folder
+// that contains the project and when it was last opened.
+func renderSubtitle(item projectItem, styles rowStyles) string {
+	found := item.project
+	parts := []string{styles.base.Foreground(technologyColor(found.Technology)).Render(safeTerminalText(string(found.Technology)))}
+	meta := func(value string) {
+		parts = append(parts, styles.meta.Render(safeTerminalText(value)))
 	}
-	return description
+	for _, framework := range found.Frameworks {
+		meta(string(framework))
+	}
+	for _, manager := range found.PackageManagers {
+		meta(string(manager))
+	}
+	if found.HasDocker && found.Technology != project.TechnologyDocker {
+		meta("Docker")
+	}
+	if found.GitBranch != "" {
+		branch := styles.meta.Render(safeTerminalText(found.GitBranch))
+		switch {
+		case !found.GitStatusKnown:
+			branch += styles.meta.Render(" ?")
+		case found.GitDirty:
+			branch += styles.base.Bold(true).Foreground(palette.changed).Render(" ●")
+		}
+		parts = append(parts, branch)
+	}
+	if parent := filepath.Base(filepath.Dir(found.Path)); parent != "." && parent != "" && parent != string(filepath.Separator) {
+		meta(parent)
+	}
+	if opened := relativeTime(found.LastOpened, item.now); opened != "" {
+		meta(opened)
+	}
+	return strings.Join(parts, styles.meta.Render("  ·  "))
+}
+
+// relativeTime formats when a project was last opened, compactly.
+func relativeTime(when, now time.Time) string {
+	if when.IsZero() || now.IsZero() {
+		return ""
+	}
+	elapsed := now.Sub(when)
+	switch {
+	case elapsed < time.Minute:
+		return "just now"
+	case elapsed < time.Hour:
+		return fmt.Sprintf("%dm ago", int(elapsed.Minutes()))
+	case elapsed < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(elapsed.Hours()))
+	case elapsed < 7*24*time.Hour:
+		return fmt.Sprintf("%dd ago", int(elapsed.Hours()/24))
+	case elapsed < 30*24*time.Hour:
+		return fmt.Sprintf("%dw ago", int(elapsed.Hours()/(24*7)))
+	case when.Year() == now.Year():
+		return when.Format("Jan 2")
+	default:
+		return when.Format("Jan 2, 2006")
+	}
 }
 
 func renderGraphicProjectItem(writer io.Writer, model list.Model, index int, item projectItem, graphic string) {
@@ -233,10 +335,10 @@ func renderGraphicProjectItem(writer io.Writer, model list.Model, index int, ite
 		prefix, prefixWidth = styles.star.Render("★")+styles.base.Render(" "), 2
 	}
 	name := ansi.Truncate(safeTerminalText(item.project.Name), max(textWidth-prefixWidth, 1), "…")
-	description := ansi.Truncate(safeTerminalText(projectSubtitle(item)), textWidth, "…")
+	description := ansi.Truncate(renderSubtitle(item, styles), textWidth, "…")
 
 	line := styles.base.Width(textWidth)
-	lines := []string{line.Render(prefix + styles.name.Render(name)), line.Render(styles.meta.Render(description))}
+	lines := []string{line.Render(prefix + styles.name.Render(name)), line.Render(description)}
 	for len(lines) < lipgloss.Height(graphic) {
 		lines = append(lines, line.Render("")) // fill the icon height so the selection band is solid
 	}
@@ -326,6 +428,7 @@ type Model struct {
 	selected       project.Project
 	hasSelection   bool
 	cancelled      bool
+	initCommand    tea.Cmd
 }
 
 func NewModel(projects []project.Project, icons icon.Mode) Model {
@@ -339,35 +442,43 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 	if options.Context == nil {
 		options.Context = context.Background()
 	}
+	if options.Now == nil {
+		options.Now = time.Now
+	}
 	projectList := list.New(nil, projectDelegate{graphics: options.Icons == icon.ModeGraphics}, 80, 24)
 	projectList.Styles.Title = lipgloss.NewStyle()
 	projectList.Styles.DefaultFilterCharacterMatch = lipgloss.NewStyle().
 		Bold(true).
 		Underline(true).
 		Foreground(palette.favorite)
-	projectList.StatusMessageLifetime = 5 * time.Second
-	// Short cursor labels leave room in the help bar for the screen actions.
-	projectList.KeyMap.CursorUp.SetHelp("↑", "up")
-	projectList.KeyMap.CursorDown.SetHelp("↓", "down")
+	projectList.StatusMessageLifetime = 6 * time.Second
+	projectList.SetShowHelp(false) // replaced by footerView
+	projectList.SetSize(80, 24-footerHeight)
+	// f and d are page keys in the list; they are ForgePath actions here.
+	projectList.KeyMap.NextPage.SetKeys("right", "l", "pgdown")
 
 	model := Model{list: projectList, projects: append([]project.Project(nil), projects...), options: options}
 	if len(projects) == 0 && options.StartPath != "" {
-		if _, err := model.showDirectory(options.StartPath); err == nil {
-			return model
+		if _, err := model.showDirectory(options.StartPath); err != nil {
+			model.showProjects()
 		}
+	} else {
+		model.showProjects()
 	}
-	model.showProjects()
+	if options.Hint != "" {
+		model.initCommand = model.newHintMessage(options.Hint)
+	}
 	return model
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return m.initCommand
 }
 
 func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch message := message.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetSize(message.Width, message.Height)
+		m.list.SetSize(message.Width, max(message.Height-footerHeight, 1))
 		if m.mode == projectScreen {
 			m.setProjectDelegate(message.Width)
 		}
@@ -376,12 +487,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.editorOpening = false
-		var command tea.Cmd
-		if m.returnMode == projectScreen {
-			command = m.showProjects()
-		} else {
-			command, _ = m.showDirectory(m.currentPath)
-		}
+		command := m.returnFromAction()
 		if message.err != nil {
 			return m, tea.Batch(command, m.newErrorMessage(fmt.Errorf("could not open %s: %w", message.editor, message.err)))
 		}
@@ -404,13 +510,20 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "c":
 			return m, m.confirmCurrentDirectory()
 		case "d":
-			if m.mode != dockerScreen {
-				return m, m.showDocker()
+			if m.mode == dockerScreen {
+				return m, nil
 			}
+			return m, m.showDocker()
 		case "o":
-			if m.mode != editorScreen {
-				return m, m.showEditors()
+			if m.mode == editorScreen {
+				return m, nil
 			}
+			return m, m.showEditors()
+		case "f":
+			if m.mode != projectScreen {
+				return m, nil
+			}
+			return m, m.toggleFavorite()
 		case "backspace", "left":
 			command, err := m.goBack()
 			if err != nil {
@@ -441,7 +554,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
-	view := tea.NewView(m.list.View())
+	view := tea.NewView(m.list.View() + "\n\n" + m.footerView())
 	view.AltScreen = true
 	view.WindowTitle = "ForgePath project browser"
 	return view
@@ -466,6 +579,67 @@ func (m *Model) newErrorMessage(err error) tea.Cmd {
 		Render("ERROR") + " " +
 		lipgloss.NewStyle().Foreground(palette.danger).Render(safeTerminalText(err.Error()))
 	return m.list.NewStatusMessage(msg)
+}
+
+func (m *Model) newHintMessage(text string) tea.Cmd {
+	msg := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(palette.ink).
+		Background(palette.bright).
+		Padding(0, 1).
+		Render("TIP") + " " +
+		lipgloss.NewStyle().Foreground(palette.bright).Render(safeTerminalText(text))
+	return m.list.NewStatusMessage(msg)
+}
+
+// toggleFavorite flips the highlighted project's favorite flag, keeps the
+// list in favorites → recent → name order and moves the cursor with it.
+func (m *Model) toggleFavorite() tea.Cmd {
+	item, ok := m.list.SelectedItem().(projectItem)
+	if !ok {
+		return nil
+	}
+	if m.options.ToggleFavorite == nil {
+		return m.newErrorMessage(fmt.Errorf("favorites are unavailable"))
+	}
+	favorite, err := m.options.ToggleFavorite(item.project)
+	if err != nil {
+		return m.newErrorMessage(fmt.Errorf("could not update favorites: %w", err))
+	}
+	for index := range m.projects {
+		if samePath(m.projects[index].Path, item.project.Path) {
+			m.projects[index].Favorite = favorite
+		}
+	}
+	sortProjects(m.projects)
+	command := m.list.SetItems(m.projectItems())
+	if !m.list.IsFiltered() {
+		for index, candidate := range m.list.Items() {
+			if found, ok := candidate.(projectItem); ok && samePath(found.project.Path, item.project.Path) {
+				m.list.Select(index)
+				break
+			}
+		}
+	}
+	text := item.project.Name + " removed from favorites"
+	if favorite {
+		text = "★ " + item.project.Name + " added to favorites"
+	}
+	return tea.Batch(command, m.newSuccessMessage(text))
+}
+
+// sortProjects uses the same order as state.Decorate: favorites, then the most
+// recently opened, then by name.
+func sortProjects(projects []project.Project) {
+	sort.SliceStable(projects, func(i, j int) bool {
+		if projects[i].Favorite != projects[j].Favorite {
+			return projects[i].Favorite
+		}
+		if !projects[i].LastOpened.Equal(projects[j].LastOpened) {
+			return projects[i].LastOpened.After(projects[j].LastOpened)
+		}
+		return projects[i].Name < projects[j].Name
+	})
 }
 
 func (m *Model) newSuccessMessage(text string) tea.Cmd {
