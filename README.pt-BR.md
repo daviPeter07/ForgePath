@@ -91,7 +91,7 @@ Os frameworks e ferramentas compatíveis incluem:
 
 ### Integração com o shell
 
-O ForgePath se integra a shells como PowerShell e Bash. A navegação e a abertura de IDEs permanecem dentro da aplicação; o diretório do shell só muda quando o usuário pressiona `c`.
+O ForgePath se integra ao PowerShell, ao Bash e ao fish. A navegação e a abertura de IDEs permanecem dentro da aplicação; o diretório do shell só muda quando o usuário pressiona `c`.
 
 ```powershell
 fg
@@ -530,6 +530,20 @@ fg() {
     fi
 }
 ```
+
+## Integração com fish
+
+O fish tem o próprio comando interno `fg` (controle de jobs), por isso o ForgePath inclui `shell/forgepath.fish`, uma função que o substitui e executa o binário com `command fg`. Instale-a como função carregada automaticamente e coloque a pasta de binários do Go no `PATH` do fish:
+
+```fish
+fish_add_path ~/go/bin
+mkdir -p ~/.config/fish/functions
+cp shell/forgepath.fish ~/.config/fish/functions/fg.fish
+```
+
+Abra um novo terminal e execute `fg`. `fg back` (ou `fg -`) volta para o diretório em que você estava antes do último `c`.
+
+Se o seu shell de login é o Bash e o `~/.bashrc` inicia o fish com `exec fish`, configure o ForgePath no fish como acima: linhas colocadas depois do `exec` no `~/.bashrc` nunca são executadas em um terminal interativo.
 
 ## Desenvolvimento
 

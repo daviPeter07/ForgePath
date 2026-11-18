@@ -104,3 +104,43 @@ jobs:
           if ($Error.Count -eq 0) {
             throw "fg back unexpectedly succeeded with an empty stack"
           }
+
+      - name: Validate fish integration
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fish >/dev/null
+          fish --no-execute shell/forgepath.fish
+          stub="$(mktemp -d)"
+          printf '%s\n' '#!/usr/bin/env bash' \
+            'if [ -n "$FG_FAIL" ]; then exit 3; fi' \
+            'if [ "$1" = pick ]; then printf "%s\n" "$FG_TARGET"; else printf "binary:%s\n" "$*"; fi' > "$stub/fg"
+          chmod +x "$stub/fg"
+          FG_TARGET="$(mktemp -d)" STUB="$stub" fish --no-config <<'FISH'
+          source shell/forgepath.fish
+          set -l start $PWD
+          set -gx PATH $STUB $PATH
+
+          test (fg workspace add /work) = "binary:workspace add /work"; or exit 1
+          test (fg --version) = "binary:--version"; or exit 1
+
+          fg; or exit 1
+          test "$PWD" = "$FG_TARGET"; or exit 1
+          fg back; or exit 1
+          test "$PWD" = "$start"; or exit 1
+          if fg back 2>/dev/null
+              echo "fg back succeeded with an empty stack" >&2; exit 1
+          end
+
+          set -gx FG_FAIL 1
+          fg
+          test $status -eq 3; or exit 1
+          test "$PWD" = "$start"; or exit 1
+          set -e FG_FAIL
+
+          set -gx PATH /usr/bin /bin
+          if fg list 2>/dev/null
+              echo "fg list succeeded without a ForgePath executable" >&2; exit 1
+          end
+          fg list 2>&1 | string match -q '*ForgePath executable*'; or exit 1
+          echo "fish integration ok"
+          FISH

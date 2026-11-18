@@ -19,7 +19,9 @@ gofmt -l .                      # CI fails if this prints anything
 
 `.gitattributes` forces LF. Without it, a global `core.autocrlf=true` checks files out as CRLF, which makes `gofmt -l` fail and breaks `source shell/forgepath.sh`.
 
-CI (`.github/workflows/ci.yml`) runs gofmt check, `go vet`, `go test`, plus syntax/behavior checks of `shell/forgepath.sh` (bash) and `shell/forgepath.ps1` (pwsh) for `fg back`.
+CI (`.github/workflows/ci.yml`) runs gofmt check, `go vet`, `go test`, plus behavior checks of the shell wrappers `shell/forgepath.sh` (bash), `shell/forgepath.fish` (fish) and `shell/forgepath.ps1` (pwsh). The bash and fish checks put a stub `fg` executable on `PATH` and verify that the wrapper reaches it.
+
+`fg` is also a job-control builtin in bash and fish. In bash, `command fg` still runs the builtin, so the wrapper resolves the executable with `type -P fg`. In fish, `command fg` runs only the external program.
 
 ## Architecture
 
@@ -46,7 +48,7 @@ Flow: `cmd/fg/main.go` → `cli.NewRootCommand` → scan workspaces → decorate
 ### Cross-cutting changes
 
 - **Adding a technology** touches: `project` constants, `detector` rules (order matters) and extension fallbacks, `catalog.fingerprintFiles`/`contentFingerprintFiles`, `icon` labels/graphics plus an SVG in `public/icons`, `tui.technologyColor`, `ide` ranking, and the README tables.
-- **Adding or renaming a subcommand**: the shell wrappers (`shell/forgepath.sh`, `shell/forgepath.ps1`) hard-code the list of subcommands and value-taking flags (`--config|--state|--cache|--icons`) to decide between dispatching to `fg` and running `fg pick --print-path`. Update both scripts **and** the copies embedded in `README.md` and `README.pt-BR.md`.
+- **Adding or renaming a subcommand**: the shell wrappers (`shell/forgepath.sh`, `shell/forgepath.fish`, `shell/forgepath.ps1`) hard-code the list of subcommands and value-taking flags (`--config|--state|--cache|--icons`) to decide between dispatching to `fg` and running `fg pick --print-path`. Update all three scripts **and** the bash/PowerShell copies embedded in `README.md` and `README.pt-BR.md`.
 - Platform-specific code uses build-tagged file pairs (`*_unix.go` / `*_windows.go`). Many functions take `goos` as a parameter so Windows behavior can be tested on Linux.
 
 ## Testing notes
