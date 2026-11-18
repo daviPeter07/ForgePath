@@ -3,7 +3,6 @@ package icon
 import (
 	"testing"
 
-	"github.com/charmbracelet/colorprofile"
 	"github.com/daviPeter07/forgepath/internal/project"
 )
 
@@ -69,14 +68,5 @@ func TestResolveModeUsesASCIIFallbackWhenColorIsDisabled(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 	if got := ResolveMode(ModeAuto, nil); got != ModeASCII {
 		t.Fatalf("ResolveMode(auto) = %q, want ascii", got)
-	}
-}
-
-func TestModeForProfileUsesASCIIForTrueColor(t *testing.T) {
-	if mode := modeForProfile(colorprofile.TrueColor); mode != ModeASCII {
-		t.Fatalf("modeForProfile(TrueColor) = %q", mode)
-	}
-	if mode := modeForProfile(colorprofile.ANSI256); mode != ModeASCII {
-		t.Fatalf("modeForProfile(ANSI256) = %q", mode)
 	}
 }

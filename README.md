@@ -16,7 +16,7 @@ ForgePath centralizes this workflow in an interactive terminal interface.
 
 ![ForgePath CLI Demonstration](docs/demo.png)
 
-*The project list: favorites first, recent projects with when they were last opened, the Git branch with ● for uncommitted changes, and the footer with every action of the screen.*
+*The project list with the inspector panel: the logo, Git state, tooling, folder and suggested IDE of the highlighted project. Favorites come first, and recent projects show when they were last opened.*
 
 ## Goals
 
@@ -75,6 +75,7 @@ Supported frameworks and tools include:
 * Search projects using fuzzy filtering
 * Navigate with the arrow keys while rendering only the visible projects
 * Browse project directories without leaving the terminal interface
+* Show the highlighted item in an inspector panel on wide terminals: the technology logo, Git state, tooling, folder, last opened time and suggested IDE, a folder's contents, or the Docker Compose file before it is generated
 * Render the embedded Devicon technology logos with ANSI truecolor pixels
 * Show the current Git branch
 * Indicate uncommitted changes
@@ -311,7 +312,7 @@ fg pick --print-path
 
 Browse projects and print the current directory only after `c` is pressed. This machine-readable output is used by the shell integration.
 
-The selector embeds the local Devicon SVGs in the binary, rasterizes them, and renders their real colors with ANSI half-block pixels by default. This does not require a Nerd Font or a terminal-specific image protocol. Use text badges or Nerd Font glyphs explicitly when preferred:
+On terminals at least 100 columns wide, the selector shows an inspector panel next to the list. On truecolor terminals the panel draws the technology logo: the Devicon SVGs are embedded in the binary, rasterized at 20×20 pixels and drawn with ANSI half-block characters, without a Nerd Font or a terminal-specific image protocol. List rows always use compact text badges. Choose badges or Nerd Font glyphs everywhere with:
 
 ```bash
 fg --icons ascii

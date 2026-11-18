@@ -16,7 +16,7 @@ O ForgePath centraliza esse fluxo de trabalho em uma interface interativa de ter
 
 ![Demonstração do ForgePath CLI](docs/demo.png)
 
-*A lista de projetos: favoritos primeiro, projetos recentes com quando foram abertos pela última vez, a branch Git com ● para mudanças não commitadas e o rodapé com todas as ações da tela.*
+*A lista de projetos com o painel de inspeção: o logo, o estado do Git, as ferramentas, a pasta e a IDE sugerida do projeto selecionado. Os favoritos vêm primeiro, e os projetos recentes mostram quando foram abertos pela última vez.*
 
 ## Objetivos
 
@@ -75,6 +75,7 @@ Os frameworks e ferramentas compatíveis incluem:
 * Pesquisar projetos com filtro fuzzy
 * Navegar com as setas renderizando apenas os projetos visíveis
 * Navegar pelas pastas dos projetos sem sair da interface do terminal
+* Mostrar o item selecionado num painel de inspeção em terminais largos: o logo da tecnologia, o estado do Git, as ferramentas, a pasta, quando foi aberto e a IDE sugerida, o conteúdo de uma pasta ou o arquivo Docker Compose antes de ser gerado
 * Renderizar os logos Devicon embutidos com pixels ANSI truecolor
 * Mostrar a branch atual do Git
 * Indicar alterações não commitadas
@@ -311,7 +312,7 @@ fg pick --print-path
 
 Navega pelos projetos e imprime o diretório atual somente depois que `c` é pressionado. Essa saída legível por máquina é usada pela integração com o shell.
 
-O seletor incorpora os SVGs locais do Devicon no binário, rasteriza os arquivos e renderiza suas cores reais com pixels ANSI de meio bloco por padrão. Isso não exige Nerd Font nem um protocolo de imagens específico do terminal. Use badges de texto ou glifos Nerd Font explicitamente quando preferir:
+Em terminais com pelo menos 100 colunas, o seletor mostra um painel de inspeção ao lado da lista. Em terminais truecolor o painel desenha o logo da tecnologia: os SVGs do Devicon são incorporados ao binário, rasterizados em 20×20 pixels e desenhados com caracteres ANSI de meio bloco, sem exigir Nerd Font nem um protocolo de imagens específico do terminal. As linhas da lista sempre usam badges de texto compactos. Para usar badges ou glifos Nerd Font em tudo:
 
 ```bash
 fg --icons ascii

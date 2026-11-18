@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -96,6 +97,7 @@ var palette = struct {
 	danger   color.Color
 	success  color.Color
 	changed  color.Color
+	border   color.Color
 }{
 	primary:  lipgloss.Color("#A855F7"),
 	bright:   lipgloss.Color("#D8B4FE"),
@@ -107,6 +109,7 @@ var palette = struct {
 	danger:   lipgloss.Color("#EF4444"),
 	success:  lipgloss.Color("#22C55E"),
 	changed:  lipgloss.Color("#FBBF24"),
+	border:   lipgloss.Color("#4C3A63"),
 }
 
 const breadcrumbSeparator = " › "
@@ -154,16 +157,13 @@ type projectItem struct {
 	now     time.Time
 }
 
+// projectDelegate renders every list item. compact rows (wide terminals,
+// where the inspector shows the full details) keep only the essentials.
 type projectDelegate struct {
-	graphics bool
+	compact bool
 }
 
-func (delegate projectDelegate) Height() int {
-	if delegate.graphics {
-		return 4
-	}
-	return 2
-}
+func (projectDelegate) Height() int  { return 2 }
 func (projectDelegate) Spacing() int { return 1 }
 func (projectDelegate) Update(tea.Msg, *list.Model) tea.Cmd {
 	return nil
@@ -185,13 +185,6 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 	if !ok {
 		return
 	}
-	if delegate.graphics && model.Width() >= 20 {
-		if graphic, err := icon.Graphic(item.project.Technology); err == nil {
-			renderGraphicProjectItem(writer, model, index, item, graphic)
-			return
-		}
-	}
-
 	selected := index == model.Index()
 	styles := newRowStyles(selected)
 	iconLabel := icon.Label(item.project.Technology, item.icons)
@@ -213,10 +206,13 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 	if model.Width() >= 20 {
 		title = iconStyle.Render(iconLabel) + styles.base.Render("  ") + title
 	}
+	// The star column is always reserved so badges line up.
 	if item.project.Favorite {
-		title = styles.star.Render("★") + styles.base.Render("  ") + title
+		title = styles.star.Render("★") + styles.base.Render(" ") + title
+	} else {
+		title = styles.base.Render("  ") + title
 	}
-	description := renderSubtitle(item, styles)
+	description := renderSubtitle(item, styles, delegate.compact)
 	content := ansi.Truncate(title, lineWidth, "…") + "\n" + ansi.Truncate(description, lineWidth, "…")
 	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 2).Render(content))
 }
@@ -264,20 +260,26 @@ func rowContainer(selected bool, width, height int) lipgloss.Style {
 // renderSubtitle is the metadata line under a project name: technology in its
 // color, tooling, Git branch (● when it has uncommitted changes), the folder
 // that contains the project and when it was last opened.
-func renderSubtitle(item projectItem, styles rowStyles) string {
+func renderSubtitle(item projectItem, styles rowStyles, compact bool) string {
 	found := item.project
 	parts := []string{styles.base.Foreground(technologyColor(found.Technology)).Render(safeTerminalText(string(found.Technology)))}
 	meta := func(value string) {
 		parts = append(parts, styles.meta.Render(safeTerminalText(value)))
 	}
-	for _, framework := range found.Frameworks {
+	frameworks := found.Frameworks
+	if compact && len(frameworks) > 1 {
+		frameworks = frameworks[:1]
+	}
+	for _, framework := range frameworks {
 		meta(string(framework))
 	}
-	for _, manager := range found.PackageManagers {
-		meta(string(manager))
-	}
-	if found.HasDocker && found.Technology != project.TechnologyDocker {
-		meta("Docker")
+	if !compact {
+		for _, manager := range found.PackageManagers {
+			meta(string(manager))
+		}
+		if found.HasDocker && found.Technology != project.TechnologyDocker {
+			meta("Docker")
+		}
 	}
 	if found.GitBranch != "" {
 		branch := styles.meta.Render(safeTerminalText(found.GitBranch))
@@ -289,7 +291,7 @@ func renderSubtitle(item projectItem, styles rowStyles) string {
 		}
 		parts = append(parts, branch)
 	}
-	if parent := filepath.Base(filepath.Dir(found.Path)); parent != "." && parent != "" && parent != string(filepath.Separator) {
+	if parent := filepath.Base(filepath.Dir(found.Path)); !compact && parent != "." && parent != "" && parent != string(filepath.Separator) {
 		meta(parent)
 	}
 	if opened := relativeTime(found.LastOpened, item.now); opened != "" {
@@ -320,31 +322,6 @@ func relativeTime(when, now time.Time) string {
 	default:
 		return when.Format("Jan 2, 2006")
 	}
-}
-
-func renderGraphicProjectItem(writer io.Writer, model list.Model, index int, item projectItem, graphic string) {
-	selected := index == model.Index()
-	styles := newRowStyles(selected)
-	const gap = 2
-	width := max(model.Width()-4, 1)
-	graphicWidth := lipgloss.Width(graphic)
-	textWidth := max(width-2-graphicWidth-gap, 1)
-
-	prefix, prefixWidth := "", 0
-	if item.project.Favorite {
-		prefix, prefixWidth = styles.star.Render("★")+styles.base.Render(" "), 2
-	}
-	name := ansi.Truncate(safeTerminalText(item.project.Name), max(textWidth-prefixWidth, 1), "…")
-	description := ansi.Truncate(renderSubtitle(item, styles), textWidth, "…")
-
-	line := styles.base.Width(textWidth)
-	lines := []string{line.Render(prefix + styles.name.Render(name)), line.Render(description)}
-	for len(lines) < lipgloss.Height(graphic) {
-		lines = append(lines, line.Render("")) // fill the icon height so the selection band is solid
-	}
-	text := strings.Join(lines, "\n")
-	content := lipgloss.JoinHorizontal(lipgloss.Top, graphic, styles.base.Render(strings.Repeat(" ", gap)), text)
-	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 4).Render(content))
 }
 
 func technologyColor(technology project.Technology) color.Color {
@@ -429,6 +406,9 @@ type Model struct {
 	hasSelection   bool
 	cancelled      bool
 	initCommand    tea.Cmd
+	width, height  int
+	home           string
+	previews       map[string][]previewEntry
 }
 
 func NewModel(projects []project.Project, icons icon.Mode) Model {
@@ -445,19 +425,28 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 	if options.Now == nil {
 		options.Now = time.Now
 	}
-	projectList := list.New(nil, projectDelegate{graphics: options.Icons == icon.ModeGraphics}, 80, 24)
+	projectList := list.New(nil, projectDelegate{}, 80, 24)
 	projectList.Styles.Title = lipgloss.NewStyle()
 	projectList.Styles.DefaultFilterCharacterMatch = lipgloss.NewStyle().
 		Bold(true).
 		Underline(true).
 		Foreground(palette.favorite)
 	projectList.StatusMessageLifetime = 6 * time.Second
+	// The status bar already says "No items"; the inspector explains why.
+	projectList.Styles.NoItems = lipgloss.NewStyle().Transform(func(string) string { return "" })
 	projectList.SetShowHelp(false) // replaced by footerView
 	projectList.SetSize(80, 24-footerHeight)
 	// f and d are page keys in the list; they are ForgePath actions here.
 	projectList.KeyMap.NextPage.SetKeys("right", "l", "pgdown")
 
-	model := Model{list: projectList, projects: append([]project.Project(nil), projects...), options: options}
+	home, _ := os.UserHomeDir()
+	model := Model{
+		list:     projectList,
+		projects: append([]project.Project(nil), projects...),
+		options:  options,
+		home:     home,
+		previews: map[string][]previewEntry{},
+	}
 	if len(projects) == 0 && options.StartPath != "" {
 		if _, err := model.showDirectory(options.StartPath); err != nil {
 			model.showProjects()
@@ -478,10 +467,8 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch message := message.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetSize(message.Width, max(message.Height-footerHeight, 1))
-		if m.mode == projectScreen {
-			m.setProjectDelegate(message.Width)
-		}
+		m.width, m.height = message.Width, message.Height
+		m.resize()
 	case editorOpenedMsg:
 		if message.request != m.editorRequest {
 			return m, nil
@@ -554,7 +541,7 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
-	view := tea.NewView(m.list.View() + "\n\n" + m.footerView())
+	view := tea.NewView(m.bodyView() + "\n\n" + m.footerView())
 	view.AltScreen = true
 	view.WindowTitle = "ForgePath project browser"
 	return view
