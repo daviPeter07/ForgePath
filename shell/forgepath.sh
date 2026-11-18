@@ -17,11 +17,11 @@ fg() {
             continue
         fi
         case "$argument" in
-            --config|--state|--cache|--icons)
+            --config|--state|--cache|--icons|--theme)
                 expect_value=1
                 continue
                 ;;
-            --config=*|--state=*|--cache=*|--icons=*)
+            --config=*|--state=*|--cache=*|--icons=*|--theme=*)
                 continue
                 ;;
             -h|--help|--version)
@@ -31,7 +31,7 @@ fg() {
             -*)
                 continue
                 ;;
-            list|pick|scan|open|reveal|run|config|workspace|favorite|recent|completion|help)
+            list|pick|scan|open|reveal|run|config|workspace|favorite|recent|clone|completion|help)
                 dispatch=1
                 ;;
         esac

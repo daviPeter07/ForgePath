@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/daviPeter07/forgepath/internal/git"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/ide"
 	"github.com/daviPeter07/forgepath/internal/project"
@@ -21,7 +23,7 @@ const (
 	splitMinWidth = 100
 	inspectorGap  = 2
 	// inspectorTop aligns the panel with the list's status line.
-	inspectorTop = 2
+	inspectorTop = 1
 	maxLogoSize  = 20
 	minLogoSize  = 8
 	logoGap      = 3
@@ -42,7 +44,7 @@ func (m *Model) resize() {
 	if m.splitLayout() {
 		width = listWidthFor(m.width)
 	}
-	m.list.SetSize(max(width, 1), max(m.height-footerHeight, 1))
+	m.list.SetSize(max(width, 1), max(m.height-footerHeight-headerHeight, 1))
 	m.list.SetDelegate(projectDelegate{compact: m.splitLayout()})
 }
 
@@ -101,6 +103,9 @@ func (m Model) emptyInspector(height int) string {
 	if m.mode == directoryScreen && m.currentPath != "" {
 		return m.folderInspector(Directory{Name: filepath.Base(m.currentPath), Path: m.currentPath}, height)
 	}
+	if m.mode == projectScreen && m.changesOnly && len(m.projects) > 0 {
+		return heading("Every project is committed", mutedStyle().Render("No project has uncommitted changes. Press ! to show all."))
+	}
 	return heading("No projects yet", mutedStyle().Render("ForgePath lists the project folders inside your workspaces.")) +
 		"\n\n" + renderFacts([]fact{{"add one", "fg workspace add <folder>"}, {"or browse", "run fg inside a folder"}})
 }
@@ -145,6 +150,14 @@ func (m Model) projectInspector(found project.Project, width, height int) string
 	if logo == "" {
 		return block
 	}
+	// Every line must fit the text column: JoinHorizontal pads all lines to
+	// the widest one, so one long line would push the whole block past the
+	// panel edge.
+	lines := strings.Split(block, "\n")
+	for index, line := range lines {
+		lines[index] = ansi.Truncate(line, max(textWidth, 1), "…")
+	}
+	block = strings.Join(lines, "\n")
 	return lipgloss.JoinHorizontal(lipgloss.Top, logo, strings.Repeat(" ", logoGap), block)
 }
 
@@ -155,6 +168,7 @@ const factKeyWidth = 10
 func (m Model) projectFacts(found project.Project, valueWidth int) []fact {
 	var facts []fact
 	facts = append(facts, fact{"branch", gitSummary(found)})
+	facts = append(facts, m.gitFacts(found)...)
 	var tooling []string
 	for _, manager := range found.PackageManagers {
 		tooling = append(tooling, string(manager))
@@ -174,8 +188,91 @@ func (m Model) projectFacts(found project.Project, valueWidth int) []fact {
 	if ranked := ide.Rank(m.options.IDEs, found.Technology); len(ranked) > 0 && ranked[0].Supports(found.Technology) {
 		facts = append(facts, fact{"opens in", safeTerminalText(ranked[0].Name) + mutedStyle().Render("  o to choose")})
 	}
+	if plan, ok := m.planFor(found); ok {
+		hint := "  detected · r to run"
+		if plan.Configured {
+			hint = "  r to run"
+		}
+		facts = append(facts, fact{"runs", safeTerminalText(strings.Join(plan.Command, " ")) + mutedStyle().Render(hint)})
+	}
 	if len(found.Markers) > 0 {
 		facts = append(facts, fact{"found by", safeTerminalText(strings.Join(found.Markers, ", "))})
+	}
+	return facts
+}
+
+type gitDetailsEntry struct {
+	loading bool
+	details git.Details
+	err     error
+}
+
+type gitDetailsMsg struct {
+	path    string
+	details git.Details
+	err     error
+}
+
+// requestGitDetails starts loading the highlighted project's commits and
+// remote state when the inspector is visible and they are not cached yet.
+// The cache map is shared by every copy of the model.
+func (m Model) requestGitDetails() tea.Cmd {
+	if !m.splitLayout() || m.options.GitDetails == nil {
+		return nil
+	}
+	item, ok := m.list.SelectedItem().(projectItem)
+	if !ok || item.project.GitBranch == "" {
+		return nil
+	}
+	path := item.project.Path
+	if _, known := m.gitDetails[path]; known {
+		return nil
+	}
+	m.gitDetails[path] = &gitDetailsEntry{loading: true}
+	load, ctx := m.options.GitDetails, m.options.Context
+	return func() tea.Msg {
+		details, err := load(ctx, path)
+		return gitDetailsMsg{path: path, details: details, err: err}
+	}
+}
+
+// gitFacts are the remote and commit lines for a project, once loaded.
+func (m Model) gitFacts(found project.Project) []fact {
+	entry := m.gitDetails[found.Path]
+	if entry == nil || entry.err != nil {
+		return nil
+	}
+	if entry.loading {
+		return []fact{{"commits", mutedStyle().Render("loading…")}}
+	}
+	details := entry.details
+	var facts []fact
+	upstream := safeTerminalText(details.Upstream)
+	switch {
+	case details.Upstream == "":
+		facts = append(facts, fact{"remote", mutedStyle().Render("no upstream branch")})
+	case details.Ahead == 0 && details.Behind == 0:
+		facts = append(facts, fact{"remote", "in sync with " + upstream})
+	default:
+		var parts []string
+		if details.Ahead > 0 {
+			parts = append(parts, lipgloss.NewStyle().Foreground(palette.success).Render("↑"+strconv.Itoa(details.Ahead)+" to push"))
+		}
+		if details.Behind > 0 {
+			parts = append(parts, lipgloss.NewStyle().Foreground(palette.changed).Render("↓"+strconv.Itoa(details.Behind)+" to pull"))
+		}
+		facts = append(facts, fact{"remote", strings.Join(parts, mutedStyle().Render(" · ")) + mutedStyle().Render("  "+upstream)})
+	}
+	for index, commit := range details.Commits {
+		key := ""
+		if index == 0 {
+			key = "commits"
+		}
+		line := mutedStyle().Render(safeTerminalText(commit.Hash)) + " " + safeTerminalText(commit.Subject)
+		if when := relativeTime(commit.When, m.options.Now()); when != "" {
+			line += mutedStyle().Render(" · " + when)
+		}
+		facts = append(facts, fact{key, line})
 	}
 	return facts
 }

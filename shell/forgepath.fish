@@ -20,17 +20,17 @@ function fg --description 'ForgePath: browse projects and cd into them'
             continue
         end
         switch $argument
-            case --config --state --cache --icons
+            case --config --state --cache --icons --theme
                 set expect_value 1
                 continue
-            case '--config=*' '--state=*' '--cache=*' '--icons=*'
+            case '--config=*' '--state=*' '--cache=*' '--icons=*' '--theme=*'
                 continue
             case -h --help --version
                 set dispatch 1
                 break
             case '-*'
                 continue
-            case list pick scan open reveal run config workspace favorite recent completion help
+            case list pick scan open reveal run config workspace favorite recent clone completion help
                 set dispatch 1
         end
         break

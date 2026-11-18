@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"time"
 )
 
@@ -28,12 +29,16 @@ func RunCommand(ctx context.Context, path string, arguments []string, stdin io.R
 	command.Stdin = stdin
 	command.Stdout = stdout
 	command.Stderr = stderr
-	prepareCommand(command, isInteractive(stdin))
+	interactive := isInteractive(stdin)
+	prepareCommand(command, interactive)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if err := command.Start(); err != nil {
 		return err
+	}
+	if interactive {
+		defer holdForeground()()
 	}
 
 	finished := make(chan error, 1)
@@ -70,4 +75,18 @@ func isInteractive(input io.Reader) bool {
 	}
 	info, err := file.Stat()
 	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+var foregroundChildren atomic.Int32
+
+// InteractiveChildRunning reports whether a command started by RunCommand
+// shares the terminal right now. Ctrl+C then reaches that command directly,
+// and ForgePath must not treat it as a request to quit.
+func InteractiveChildRunning() bool {
+	return foregroundChildren.Load() > 0
+}
+
+func holdForeground() func() {
+	foregroundChildren.Add(1)
+	return func() { foregroundChildren.Add(-1) }
 }

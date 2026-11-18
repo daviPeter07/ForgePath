@@ -25,6 +25,8 @@ CI (`.github/workflows/ci.yml`) runs gofmt check, `go vet`, `go test`, plus beha
 
 ## Architecture
 
+Signals: `main.watchSignals` cancels on SIGTERM, and on Ctrl+C only when no interactive child holds the terminal (`action.InteractiveChildRunning`). Stopping a dev server started with `r` therefore returns to the selector.
+
 Flow: `cmd/fg/main.go` → `cli.NewRootCommand` → scan workspaces → decorate with favorites/recents → `tui.SelectWithOptions` → print path / launch IDE / run command.
 
 - **`internal/cli`**: Cobra commands. `configuredWorkspaces` picks the folders to scan: an explicit workspace argument, else every catalog workspace (`fg workspace add`), else the current directory. `resolveProject` (used by open/reveal/run/favorite) searches the same set and reports ambiguous names. `root.go` wires all subcommands and resolves the three persistent paths (`--config`/`FORGEPATH_CONFIG`, `--state`/`FORGEPATH_STATE`, `--cache`/`FORGEPATH_CACHE`). Dependencies are injected as function values (`scanProjectsFunc`, `statePathFunc`, `configPathFunc`, `action.*` funcs) so tests can stub them. Several commands have a plain constructor and a `newConfigured...` variant used by the root. State/cache failures are reported as `warning:` on stderr and never abort the command (`*BestEffort` helpers).
@@ -40,6 +42,10 @@ Flow: `cmd/fg/main.go` → `cli.NewRootCommand` → scan workspaces → decorate
   - The list's own help is hidden. `footerView` draws a two-line footer (navigate / actions from `screenKeys`), and the list height is the window height minus `footerHeight`.
   - `f`, `d` and `o` are removed from or intercepted before the list's page keys, so they never page the list.
   - `inspector.go`: from `splitMinWidth` (100) columns, `bodyView` puts an inspector panel next to the list (`resize` narrows the list). It describes the highlighted item per screen; with an empty list it shows the current folder or onboarding. The panel is as tall as its content.
+  - `headerView` draws the breadcrumb and the status message across the full width (the list's own title is hidden); use `setStatus`, never `list.NewStatusMessage`. When both do not fit, the status wins.
+  - Git details (`git.LoadDetails`: commits, ahead/behind) load asynchronously per highlighted project via `requestGitDetails`, cached in `gitDetails`. Run plans are cached in `runPlans`.
+  - `r` (`run.go`) hands the terminal to the command through `m.exec` (tea.Exec; tests replace it). Detected commands need a second `r`.
+  - Themes (`theme.go`): `palette` is a package-level variable swapped by `applyTheme`; `auto` switches on `tea.BackgroundColorMsg`. Tests that change the theme must restore it.
   - Optional behavior comes in through `Options`: `ToggleFavorite` (the `f` key is hidden without it), `Hint` (status message on start) and `Now` (clock for "2h ago").
   - Any `*Model` method that changes `m.list` (status messages, items) must use a pointer receiver. With a value receiver the change lands on a copy and is lost; this once hid every error message.
   - Row rendering: inner lipgloss styles end with a reset, so the selected row's background has to be carried into every segment (`newRowStyles`). `rowContainer` keeps selected and unselected rows the same width.
@@ -49,7 +55,7 @@ Flow: `cmd/fg/main.go` → `cli.NewRootCommand` → scan workspaces → decorate
 ### Cross-cutting changes
 
 - **Adding a technology** touches: `project` constants, `detector` rules (order matters) and extension fallbacks, `catalog.fingerprintFiles`/`contentFingerprintFiles`, `icon` labels/graphics plus an SVG in `public/icons`, `tui.technologyColor`, `ide` ranking, and the README tables.
-- **Adding or renaming a subcommand**: the shell wrappers (`shell/forgepath.sh`, `shell/forgepath.fish`, `shell/forgepath.ps1`) hard-code the list of subcommands and value-taking flags (`--config|--state|--cache|--icons`) to decide between dispatching to `fg` and running `fg pick --print-path`. Update all three scripts **and** the bash/PowerShell copies embedded in `README.md` and `README.pt-BR.md`.
+- **Adding or renaming a subcommand**: the shell wrappers (`shell/forgepath.sh`, `shell/forgepath.fish`, `shell/forgepath.ps1`) hard-code the list of subcommands (including `clone`) and value-taking flags (`--config|--state|--cache|--icons|--theme`) to decide between dispatching to `fg` and running `fg pick --print-path`. Update all three scripts **and** the bash/PowerShell copies embedded in `README.md` and `README.pt-BR.md`.
 - Platform-specific code uses build-tagged file pairs (`*_unix.go` / `*_windows.go`). Many functions take `goos` as a parameter so Windows behavior can be tested on Linux.
 
 ## Testing notes

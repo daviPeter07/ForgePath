@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -30,6 +31,7 @@ var (
 	editorKey   = key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open IDE"))
 	dockerKey   = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "compose"))
 	favoriteKey = key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favorite"))
+	runKey      = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "run"))
 	backKey     = key.NewBinding(key.WithKeys("backspace", "left"), key.WithHelp("←", "back"))
 	moveKey     = key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑↓", "move"))
 	filterKey   = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter"))
@@ -49,6 +51,43 @@ var screenKeys = map[screenMode][]key.Binding{
 
 // footerHeight is the blank line plus the navigation and action lines.
 const footerHeight = 3
+
+// headerHeight is the breadcrumb line drawn above the list. The list's own
+// title is hidden: it is only as wide as the list, which truncated status
+// messages next to the inspector.
+const headerHeight = 1
+
+const statusLifetime = 6 * time.Second
+
+type statusExpiredMsg struct{ id int }
+
+// setStatus shows text next to the breadcrumb until it expires or a newer
+// message replaces it.
+func (m *Model) setStatus(text string) tea.Cmd {
+	m.statusID++
+	id := m.statusID
+	m.status = text
+	return tea.Tick(statusLifetime, func(time.Time) tea.Msg { return statusExpiredMsg{id: id} })
+}
+
+// headerView is the breadcrumb and the status message. When both do not fit,
+// the message wins over the breadcrumb trail: it is short-lived and often
+// the thing the user needs to read.
+func (m Model) headerView() string {
+	width := m.width
+	if width <= 0 {
+		width = m.list.Width()
+	}
+	room := max(width-2, 1)
+	header := m.list.Title
+	if m.status != "" && !m.list.SettingFilter() {
+		header += "  " + m.status
+		if ansi.StringWidth(header) > room {
+			header = renderBrand() + "  " + m.status
+		}
+	}
+	return "  " + ansi.Truncate(header, room, "…")
+}
 
 // footerView replaces the list's one-line help with two lines, navigation and
 // actions, so every key of the screen fits without truncation.
@@ -72,6 +111,16 @@ func (m Model) footerView() string {
 		}
 		actions = append(actions, binding)
 	}
+	if (m.mode == projectScreen || m.mode == directoryScreen) && m.options.PlanRun != nil && m.options.RunCommand != nil {
+		actions = append(actions, runKey)
+	}
+	if m.mode == projectScreen {
+		description := "changed"
+		if m.changesOnly {
+			description = "show all"
+		}
+		actions = append(actions, key.NewBinding(key.WithKeys("!"), key.WithHelp("!", description)))
+	}
 	return renderKeyLine("navigate", navigation) + "\n" + renderKeyLine("actions", actions)
 }
 
@@ -83,40 +132,21 @@ func renderKeyLine(label string, bindings []key.Binding) string {
 		parts[index] = keyStyle.Render(binding.Help().Key) + " " + descriptionStyle.Render(binding.Help().Desc)
 	}
 	labelStyle := lipgloss.NewStyle().Foreground(palette.primary).Width(10)
-	return "  " + labelStyle.Render(label) + strings.Join(parts, descriptionStyle.Render("  ·  "))
+	return "  " + labelStyle.Render(label) + strings.Join(parts, descriptionStyle.Render(" · "))
 }
 
-var palette = struct {
-	primary  color.Color
-	bright   color.Color
-	surface  color.Color
-	text     color.Color
-	muted    color.Color
-	favorite color.Color
-	ink      color.Color
-	danger   color.Color
-	success  color.Color
-	changed  color.Color
-	border   color.Color
-}{
-	primary:  lipgloss.Color("#A855F7"),
-	bright:   lipgloss.Color("#D8B4FE"),
-	surface:  lipgloss.Color("#241532"),
-	text:     lipgloss.Color("#F7F2FF"),
-	muted:    lipgloss.Color("#A99DB8"),
-	favorite: lipgloss.Color("#FACC15"),
-	ink:      lipgloss.Color("#17111F"),
-	danger:   lipgloss.Color("#EF4444"),
-	success:  lipgloss.Color("#22C55E"),
-	changed:  lipgloss.Color("#FBBF24"),
-	border:   lipgloss.Color("#4C3A63"),
-}
+// palette is the active theme; applyTheme replaces it.
+var palette = themes[ThemeDark]
 
 const breadcrumbSeparator = " › "
 
+func renderBrand() string {
+	return lipgloss.NewStyle().Bold(true).Foreground(palette.ink).Background(palette.primary).Padding(0, 1).Render("◆ FORGEPATH")
+}
+
 // renderTitle draws the header as a brand chip followed by a breadcrumb.
 func renderTitle(crumb string) string {
-	brand := lipgloss.NewStyle().Bold(true).Foreground(palette.ink).Background(palette.primary).Padding(0, 1).Render("◆ FORGEPATH")
+	brand := renderBrand()
 	trail := lipgloss.NewStyle().Bold(true).Foreground(palette.bright).Background(palette.surface).Padding(0, 1).Render(safeTerminalText(crumb))
 	return brand + trail
 }
@@ -202,7 +232,7 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 
 	width := max(model.Width()-4, 1)
 	lineWidth := max(width-2, 1)
-	title := styles.name.Render(safeTerminalText(item.project.Name))
+	title := highlightMatches(safeTerminalText(item.project.Name), model.MatchesForItem(index), 0, styles.name)
 	if model.Width() >= 20 {
 		title = iconStyle.Render(iconLabel) + styles.base.Render("  ") + title
 	}
@@ -215,6 +245,22 @@ func (delegate projectDelegate) Render(writer io.Writer, model list.Model, index
 	description := renderSubtitle(item, styles, delegate.compact)
 	content := ansi.Truncate(title, lineWidth, "…") + "\n" + ansi.Truncate(description, lineWidth, "…")
 	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 2).Render(content))
+}
+
+// highlightMatches styles the runes of text that the fuzzy filter matched.
+// matches index runes of the item's FilterValue, where text starts at offset.
+func highlightMatches(text string, matches []int, offset int, base lipgloss.Style) string {
+	length := utf8.RuneCountInString(text)
+	var indices []int
+	for _, match := range matches {
+		if match >= offset && match < offset+length {
+			indices = append(indices, match-offset)
+		}
+	}
+	if len(indices) == 0 {
+		return base.Render(text)
+	}
+	return lipgloss.StyleRunes(text, indices, base.Underline(true).Foreground(palette.favorite), base)
 }
 
 // rowStyles carries the selection background into every segment, because each
@@ -406,9 +452,22 @@ type Model struct {
 	hasSelection   bool
 	cancelled      bool
 	initCommand    tea.Cmd
-	width, height  int
-	home           string
-	previews       map[string][]previewEntry
+	// changesOnly limits the project list to projects with uncommitted changes.
+	changesOnly   bool
+	width, height int
+	home          string
+	previews      map[string][]previewEntry
+	gitDetails    map[string]*gitDetailsEntry
+	crumb         string
+	runPlans      map[string]runPlanEntry
+	// pendingRun is the project and command waiting for a confirming r.
+	pendingRun string
+	// status is the message shown next to the breadcrumb; statusID lets a
+	// newer message survive the expiry timer of an older one.
+	status   string
+	statusID int
+	// exec hands the terminal to a process; tests replace it.
+	exec func(tea.ExecCommand, tea.ExecCallback) tea.Cmd
 }
 
 func NewModel(projects []project.Project, icons icon.Mode) Model {
@@ -425,6 +484,11 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 	if options.Now == nil {
 		options.Now = time.Now
 	}
+	if autoTheme(options.Theme) {
+		applyTheme(ThemeDark) // until the terminal reports its background
+	} else {
+		applyTheme(options.Theme)
+	}
 	projectList := list.New(nil, projectDelegate{}, 80, 24)
 	projectList.Styles.Title = lipgloss.NewStyle()
 	projectList.Styles.DefaultFilterCharacterMatch = lipgloss.NewStyle().
@@ -434,18 +498,22 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 	projectList.StatusMessageLifetime = 6 * time.Second
 	// The status bar already says "No items"; the inspector explains why.
 	projectList.Styles.NoItems = lipgloss.NewStyle().Transform(func(string) string { return "" })
-	projectList.SetShowHelp(false) // replaced by footerView
-	projectList.SetSize(80, 24-footerHeight)
+	projectList.SetShowHelp(false)  // replaced by footerView
+	projectList.SetShowTitle(false) // replaced by headerView
+	projectList.SetSize(80, 24-footerHeight-headerHeight)
 	// f and d are page keys in the list; they are ForgePath actions here.
 	projectList.KeyMap.NextPage.SetKeys("right", "l", "pgdown")
 
 	home, _ := os.UserHomeDir()
 	model := Model{
-		list:     projectList,
-		projects: append([]project.Project(nil), projects...),
-		options:  options,
-		home:     home,
-		previews: map[string][]previewEntry{},
+		list:       projectList,
+		projects:   append([]project.Project(nil), projects...),
+		options:    options,
+		home:       home,
+		previews:   map[string][]previewEntry{},
+		gitDetails: map[string]*gitDetailsEntry{},
+		runPlans:   map[string]runPlanEntry{},
+		exec:       tea.Exec,
 	}
 	if len(projects) == 0 && options.StartPath != "" {
 		if _, err := model.showDirectory(options.StartPath); err != nil {
@@ -461,11 +529,34 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 }
 
 func (m Model) Init() tea.Cmd {
+	if autoTheme(m.options.Theme) {
+		return tea.Batch(m.initCommand, tea.RequestBackgroundColor)
+	}
 	return m.initCommand
 }
 
 func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	if loaded, ok := message.(gitDetailsMsg); ok {
+		m.gitDetails[loaded.path] = &gitDetailsEntry{details: loaded.details, err: loaded.err}
+		return m, nil
+	}
+	updated, command := m.update(message)
+	next := updated.(Model)
+	return next, tea.Batch(command, next.requestGitDetails())
+}
+
+func (m Model) update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch message := message.(type) {
+	case tea.BackgroundColorMsg:
+		if autoTheme(m.options.Theme) {
+			theme := ThemeDark
+			if !message.IsDark() {
+				theme = ThemeLight
+			}
+			applyTheme(theme)
+			m.list.Title = renderTitle(m.crumb)
+		}
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width, m.height = message.Width, message.Height
 		m.resize()
@@ -479,7 +570,17 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(command, m.newErrorMessage(fmt.Errorf("could not open %s: %w", message.editor, message.err)))
 		}
 		return m, tea.Batch(command, m.newSuccessMessage("Opened "+filepath.Base(message.path)+" in "+message.editor))
+	case runFinishedMsg:
+		return m, m.runFinished(message)
+	case statusExpiredMsg:
+		if message.id == m.statusID {
+			m.status = ""
+		}
+		return m, nil
 	case tea.KeyPressMsg:
+		if message.String() != "r" {
+			m.pendingRun = ""
+		}
 		if message.String() == "ctrl+c" {
 			m.cancelled = true
 			return m, tea.Quit
@@ -511,6 +612,17 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, m.toggleFavorite()
+		case "r":
+			if m.mode != projectScreen && m.mode != directoryScreen {
+				return m, nil
+			}
+			return m, m.runSelected()
+		case "!":
+			if m.mode != projectScreen {
+				return m, nil
+			}
+			m.changesOnly = !m.changesOnly
+			return m, m.showProjects()
 		case "backspace", "left":
 			command, err := m.goBack()
 			if err != nil {
@@ -541,7 +653,15 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
-	view := tea.NewView(m.bodyView() + "\n\n" + m.footerView())
+	footer := m.footerView()
+	if m.width > 0 {
+		lines := strings.Split(footer, "\n")
+		for index, line := range lines {
+			lines[index] = ansi.Truncate(line, m.width, "…")
+		}
+		footer = strings.Join(lines, "\n")
+	}
+	view := tea.NewView(m.headerView() + "\n" + m.bodyView() + "\n\n" + footer)
 	view.AltScreen = true
 	view.WindowTitle = "ForgePath project browser"
 	return view
@@ -565,7 +685,7 @@ func (m *Model) newErrorMessage(err error) tea.Cmd {
 		Padding(0, 1).
 		Render("ERROR") + " " +
 		lipgloss.NewStyle().Foreground(palette.danger).Render(safeTerminalText(err.Error()))
-	return m.list.NewStatusMessage(msg)
+	return m.setStatus(msg)
 }
 
 func (m *Model) newHintMessage(text string) tea.Cmd {
@@ -576,7 +696,7 @@ func (m *Model) newHintMessage(text string) tea.Cmd {
 		Padding(0, 1).
 		Render("TIP") + " " +
 		lipgloss.NewStyle().Foreground(palette.bright).Render(safeTerminalText(text))
-	return m.list.NewStatusMessage(msg)
+	return m.setStatus(msg)
 }
 
 // toggleFavorite flips the highlighted project's favorite flag, keeps the
@@ -637,7 +757,7 @@ func (m *Model) newSuccessMessage(text string) tea.Cmd {
 		Padding(0, 1).
 		Render("OK") + " " +
 		lipgloss.NewStyle().Foreground(palette.success).Render(safeTerminalText(text))
-	return m.list.NewStatusMessage(msg)
+	return m.setStatus(msg)
 }
 
 func Select(ctx context.Context, projects []project.Project, icons icon.Mode, input io.Reader, output io.Writer) (project.Project, bool, error) {

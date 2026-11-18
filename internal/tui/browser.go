@@ -16,6 +16,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daviPeter07/forgepath/internal/detector"
+	"github.com/daviPeter07/forgepath/internal/git"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/ide"
 	"github.com/daviPeter07/forgepath/internal/project"
@@ -48,10 +49,19 @@ type Options struct {
 	// ToggleFavorite persists the favorite flag of a project and returns the
 	// new value. Without it the f key and its help are hidden.
 	ToggleFavorite func(project.Project) (bool, error)
+	// Theme is a theme name; empty or "auto" follows the terminal background.
+	Theme string
 	// Hint is shown as a status message when the browser opens.
 	Hint string
 	// Now is the clock used for "opened 2h ago" labels.
 	Now func() time.Time
+	// PlanRun returns the command r starts for a project; RunCommand runs it.
+	// Both are needed for the r key.
+	PlanRun    func(project.Project) (RunPlan, bool)
+	RunCommand RunFunc
+	// GitDetails loads recent commits and remote sync state for the inspector.
+	// It runs in the background, once per project.
+	GitDetails func(context.Context, string) (git.Details, error)
 }
 
 type directoryItem struct {
@@ -105,7 +115,8 @@ func renderItemBlock(writer io.Writer, model list.Model, index int, badge, title
 	styles := newRowStyles(selected)
 	width := max(model.Width()-4, 1)
 	lineWidth := max(width-2, 1)
-	content := ansi.Truncate(badge+styles.base.Render("  ")+styles.name.Render(title), lineWidth, "…") + "\n" +
+	name := highlightMatches(title, model.MatchesForItem(index), 0, styles.name)
+	content := ansi.Truncate(badge+styles.base.Render("  ")+name, lineWidth, "…") + "\n" +
 		ansi.Truncate(styles.meta.Render(description), lineWidth, "…")
 	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 2).Render(content))
 }
@@ -138,13 +149,18 @@ func ignoredBrowserDirectory(name string) bool {
 func (m *Model) setScreen(mode screenMode, crumb, singular, plural string) {
 	m.mode = mode
 	m.list.ResetFilter()
+	m.crumb = crumb
 	m.list.Title = renderTitle(crumb)
 	m.list.SetStatusBarItemName(singular, plural)
 	m.list.SetDelegate(projectDelegate{compact: m.splitLayout()})
 }
 
 func (m *Model) showProjects() tea.Cmd {
-	m.setScreen(projectScreen, "Projects", "project", "projects")
+	crumb := "Projects"
+	if m.changesOnly {
+		crumb += breadcrumbSeparator + "With changes"
+	}
+	m.setScreen(projectScreen, crumb, "project", "projects")
 	m.currentPath = ""
 	m.currentProject = project.Project{}
 	m.parentProjects = nil
@@ -153,9 +169,12 @@ func (m *Model) showProjects() tea.Cmd {
 
 func (m *Model) projectItems() []list.Item {
 	now := m.options.Now()
-	items := make([]list.Item, len(m.projects))
-	for index, found := range m.projects {
-		items[index] = projectItem{project: found, icons: m.options.Icons, now: now}
+	items := make([]list.Item, 0, len(m.projects))
+	for _, found := range m.projects {
+		if m.changesOnly && !found.GitDirty {
+			continue
+		}
+		items = append(items, projectItem{project: found, icons: m.options.Icons, now: now})
 	}
 	return items
 }
@@ -306,7 +325,7 @@ func (m *Model) openSelectedEditor(item editorItem) tea.Cmd {
 		return m.newErrorMessage(fmt.Errorf("editor launching is unavailable"))
 	}
 	if m.editorOpening {
-		return m.list.NewStatusMessage("Waiting for the editor to start…")
+		return m.setStatus("Waiting for the editor to start…")
 	}
 	m.editorRequest++
 	request := m.editorRequest
