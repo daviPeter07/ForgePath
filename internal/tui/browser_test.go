@@ -141,13 +141,7 @@ func TestTitleShowsBreadcrumbAndStaysConsistent(t *testing.T) {
 }
 
 func TestHelpOnlyShowsKeysThatWorkOnTheScreen(t *testing.T) {
-	helpText := func(model Model) string {
-		var parts []string
-		for _, binding := range model.list.AdditionalShortHelpKeys() {
-			parts = append(parts, binding.Help().Key+" "+binding.Help().Desc)
-		}
-		return strings.Join(parts, " | ")
-	}
+	helpText := func(model Model) string { return ansi.Strip(model.footerView()) }
 	projectRoot := t.TempDir()
 	model := NewModelWithOptions([]project.Project{{Name: "app", Path: projectRoot, Technology: project.TechnologyGo}}, Options{
 		Icons: icon.ModeASCII,

@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -45,6 +45,13 @@ type Options struct {
 	OpenEditor      OpenEditorFunc
 	Context         context.Context
 	StartPath       string
+	// ToggleFavorite persists the favorite flag of a project and returns the
+	// new value. Without it the f key and its help are hidden.
+	ToggleFavorite func(project.Project) (bool, error)
+	// Hint is shown as a status message when the browser opens.
+	Hint string
+	// Now is the clock used for "opened 2h ago" labels.
+	Now func() time.Time
 }
 
 type directoryItem struct {
@@ -133,9 +140,6 @@ func (m *Model) setScreen(mode screenMode, crumb, singular, plural string) {
 	m.list.ResetFilter()
 	m.list.Title = renderTitle(crumb)
 	m.list.SetStatusBarItemName(singular, plural)
-	bindings := screenKeys[mode]
-	m.list.AdditionalShortHelpKeys = func() []key.Binding { return bindings }
-	m.list.AdditionalFullHelpKeys = func() []key.Binding { return bindings }
 	if mode == projectScreen || mode == directoryScreen {
 		m.setProjectDelegate(m.list.Width())
 	} else {
@@ -148,11 +152,16 @@ func (m *Model) showProjects() tea.Cmd {
 	m.currentPath = ""
 	m.currentProject = project.Project{}
 	m.parentProjects = nil
+	return m.list.SetItems(m.projectItems())
+}
+
+func (m *Model) projectItems() []list.Item {
+	now := m.options.Now()
 	items := make([]list.Item, len(m.projects))
 	for index, found := range m.projects {
-		items[index] = projectItem{project: found, icons: m.options.Icons}
+		items[index] = projectItem{project: found, icons: m.options.Icons, now: now}
 	}
-	return m.list.SetItems(items)
+	return items
 }
 
 func (m *Model) setProjectDelegate(width int) {
