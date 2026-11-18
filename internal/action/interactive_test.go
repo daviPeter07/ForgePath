@@ -41,3 +41,22 @@ func TestIsInteractiveRejectsNonTerminalInputs(t *testing.T) {
 		}
 	}
 }
+
+func TestForegroundTrackingFollowsInteractiveChildren(t *testing.T) {
+	if InteractiveChildRunning() {
+		t.Fatal("no child should be running at the start")
+	}
+	release := holdForeground()
+	second := holdForeground()
+	if !InteractiveChildRunning() {
+		t.Fatal("InteractiveChildRunning() = false while a child holds the terminal")
+	}
+	release()
+	if !InteractiveChildRunning() {
+		t.Fatal("one child still holds the terminal")
+	}
+	second()
+	if InteractiveChildRunning() {
+		t.Fatal("InteractiveChildRunning() = true after every child finished")
+	}
+}

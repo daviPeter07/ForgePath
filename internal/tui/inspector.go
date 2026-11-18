@@ -44,7 +44,7 @@ func (m *Model) resize() {
 	if m.splitLayout() {
 		width = listWidthFor(m.width)
 	}
-	m.list.SetSize(max(width, 1), max(m.height-footerHeight, 1))
+	m.list.SetSize(max(width, 1), max(m.height-footerHeight-headerHeight, 1))
 	m.list.SetDelegate(projectDelegate{compact: m.splitLayout()})
 }
 
@@ -179,6 +179,13 @@ func (m Model) projectFacts(found project.Project, valueWidth int) []fact {
 	facts = append(facts, fact{"opened", opened})
 	if ranked := ide.Rank(m.options.IDEs, found.Technology); len(ranked) > 0 && ranked[0].Supports(found.Technology) {
 		facts = append(facts, fact{"opens in", safeTerminalText(ranked[0].Name) + mutedStyle().Render("  o to choose")})
+	}
+	if plan, ok := m.planFor(found); ok {
+		hint := "  detected · r to run"
+		if plan.Configured {
+			hint = "  r to run"
+		}
+		facts = append(facts, fact{"runs", safeTerminalText(strings.Join(plan.Command, " ")) + mutedStyle().Render(hint)})
 	}
 	if len(found.Markers) > 0 {
 		facts = append(facts, fact{"found by", safeTerminalText(strings.Join(found.Markers, ", "))})

@@ -64,7 +64,7 @@ func TestDockerGenerationWritesComposeAndReturns(t *testing.T) {
 	if !ok || !selected.project.HasDocker {
 		t.Fatalf("project after generation = %+v, want HasDocker", model.list.SelectedItem())
 	}
-	if status := ansi.Strip(model.list.View()); !strings.Contains(status, "Generated docker-compose.yml") {
+	if status := ansi.Strip(model.View().Content); !strings.Contains(status, "Generated docker-compose.yml") {
 		t.Fatalf("view = %q, want success status", status)
 	}
 }
@@ -89,7 +89,7 @@ func TestDockerGenerationNeverReplacesExistingComposeFiles(t *testing.T) {
 			if model.mode != dockerScreen {
 				t.Fatalf("mode = %v, want to stay on the docker screen", model.mode)
 			}
-			if status := ansi.Strip(model.list.View()); !strings.Contains(status, existing+" already exists") {
+			if status := ansi.Strip(model.View().Content); !strings.Contains(status, existing+" already exists") {
 				t.Fatalf("view = %q, want already-exists error", status)
 			}
 		})

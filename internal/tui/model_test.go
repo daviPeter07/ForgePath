@@ -117,8 +117,8 @@ func TestModelHandlesWindowResize(t *testing.T) {
 	updated, _ := model.Update(tea.WindowSizeMsg{Width: 96, Height: 36})
 	model = updated.(Model)
 
-	if model.list.Width() != 96 || model.list.Height() != 36-footerHeight {
-		t.Fatalf("list size = %dx%d, want 96x%d (window minus footer)", model.list.Width(), model.list.Height(), 36-footerHeight)
+	if model.list.Width() != 96 || model.list.Height() != 36-footerHeight-headerHeight {
+		t.Fatalf("list size = %dx%d, want 96x%d (window minus header and footer)", model.list.Width(), model.list.Height(), 36-footerHeight-headerHeight)
 	}
 	if lines := strings.Count(model.View().Content, "\n") + 1; lines != 36 {
 		t.Fatalf("view has %d lines, want the window height 36", lines)

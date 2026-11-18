@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/daviPeter07/forgepath/internal/action"
+	"github.com/daviPeter07/forgepath/internal/detector"
 	gitinfo "github.com/daviPeter07/forgepath/internal/git"
 	"github.com/daviPeter07/forgepath/internal/icon"
 	"github.com/daviPeter07/forgepath/internal/ide"
@@ -98,7 +99,13 @@ func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool,
 		ToggleFavorite: favoriteToggler(statePath),
 		GitDetails:     gitinfo.LoadDetails,
 		Theme:          theme,
-		Hint:           pickerHint(args, configPath),
+		PlanRun:        runPlanner(configPath),
+		RunCommand: func(ctx context.Context, path string, command []string, stdin io.Reader, stdout, stderr io.Writer) error {
+			err := action.RunCommand(ctx, path, command, stdin, stdout, stderr)
+			recordRecentBestEffort(cmd, statePath, projectRootForPath(projects, path))
+			return err
+		},
+		Hint: pickerHint(args, configPath),
 		OpenEditor: func(ctx context.Context, path string, selectedProject project.Project, editor ide.IDE) error {
 			if err := action.OpenEditorWithArguments(ctx, path, editor.Executable, editor.Arguments); err != nil {
 				return err
@@ -214,4 +221,22 @@ func pickerTheme(cmd *cobra.Command, configPath configPathFunc) (string, error) 
 		return "", err
 	}
 	return theme, nil
+}
+
+// runPlanner picks what the selector's r key runs: the command configured in
+// projects.<name>.command (as fg run uses), otherwise a detected suggestion.
+func runPlanner(configPath configPathFunc) func(project.Project) (tui.RunPlan, bool) {
+	return func(found project.Project) (tui.RunPlan, bool) {
+		if configPath != nil {
+			if _, configuration, err := editableConfiguration(configPath); err == nil {
+				if configured, ok := configuration.Projects[found.Name]; ok && len(configured.Command) > 0 {
+					return tui.RunPlan{Command: configured.Command, Configured: true}, true
+				}
+			}
+		}
+		if command := detector.DevCommand(found); command != nil {
+			return tui.RunPlan{Command: command}, true
+		}
+		return tui.RunPlan{}, false
+	}
 }

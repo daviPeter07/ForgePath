@@ -190,7 +190,7 @@ func TestOpenIDEWithoutInstalledEditorsShowsError(t *testing.T) {
 	if command == nil {
 		t.Fatal("command = nil, want status message")
 	}
-	if status := ansi.Strip(model.list.View()); !strings.Contains(status, "no supported IDE") {
+	if status := ansi.Strip(model.View().Content); !strings.Contains(status, "no supported IDE") {
 		t.Fatalf("view = %q, want error status", status)
 	}
 }

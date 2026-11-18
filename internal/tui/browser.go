@@ -55,6 +55,10 @@ type Options struct {
 	Hint string
 	// Now is the clock used for "opened 2h ago" labels.
 	Now func() time.Time
+	// PlanRun returns the command r starts for a project; RunCommand runs it.
+	// Both are needed for the r key.
+	PlanRun    func(project.Project) (RunPlan, bool)
+	RunCommand RunFunc
 	// GitDetails loads recent commits and remote sync state for the inspector.
 	// It runs in the background, once per project.
 	GitDetails func(context.Context, string) (git.Details, error)
@@ -321,7 +325,7 @@ func (m *Model) openSelectedEditor(item editorItem) tea.Cmd {
 		return m.newErrorMessage(fmt.Errorf("editor launching is unavailable"))
 	}
 	if m.editorOpening {
-		return m.list.NewStatusMessage("Waiting for the editor to start…")
+		return m.setStatus("Waiting for the editor to start…")
 	}
 	m.editorRequest++
 	request := m.editorRequest

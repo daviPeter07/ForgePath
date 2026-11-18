@@ -31,6 +31,7 @@ var (
 	editorKey   = key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open IDE"))
 	dockerKey   = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "compose"))
 	favoriteKey = key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favorite"))
+	runKey      = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "run"))
 	backKey     = key.NewBinding(key.WithKeys("backspace", "left"), key.WithHelp("←", "back"))
 	moveKey     = key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑↓", "move"))
 	filterKey   = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter"))
@@ -50,6 +51,36 @@ var screenKeys = map[screenMode][]key.Binding{
 
 // footerHeight is the blank line plus the navigation and action lines.
 const footerHeight = 3
+
+// headerHeight is the breadcrumb line drawn above the list. The list's own
+// title is hidden: it is only as wide as the list, which truncated status
+// messages next to the inspector.
+const headerHeight = 1
+
+const statusLifetime = 6 * time.Second
+
+type statusExpiredMsg struct{ id int }
+
+// setStatus shows text next to the breadcrumb until it expires or a newer
+// message replaces it.
+func (m *Model) setStatus(text string) tea.Cmd {
+	m.statusID++
+	id := m.statusID
+	m.status = text
+	return tea.Tick(statusLifetime, func(time.Time) tea.Msg { return statusExpiredMsg{id: id} })
+}
+
+func (m Model) headerView() string {
+	header := m.list.Title
+	if m.status != "" && !m.list.SettingFilter() {
+		header += "  " + m.status
+	}
+	width := m.width
+	if width <= 0 {
+		width = m.list.Width()
+	}
+	return " " + ansi.Truncate(header, max(width-1, 1), "…")
+}
 
 // footerView replaces the list's one-line help with two lines, navigation and
 // actions, so every key of the screen fits without truncation.
@@ -73,8 +104,11 @@ func (m Model) footerView() string {
 		}
 		actions = append(actions, binding)
 	}
+	if (m.mode == projectScreen || m.mode == directoryScreen) && m.options.PlanRun != nil && m.options.RunCommand != nil {
+		actions = append(actions, runKey)
+	}
 	if m.mode == projectScreen {
-		description := "changes only"
+		description := "changed"
 		if m.changesOnly {
 			description = "show all"
 		}
@@ -414,6 +448,15 @@ type Model struct {
 	previews      map[string][]previewEntry
 	gitDetails    map[string]*gitDetailsEntry
 	crumb         string
+	runPlans      map[string]runPlanEntry
+	// pendingRun is the project and command waiting for a confirming r.
+	pendingRun string
+	// status is the message shown next to the breadcrumb; statusID lets a
+	// newer message survive the expiry timer of an older one.
+	status   string
+	statusID int
+	// exec hands the terminal to a process; tests replace it.
+	exec func(tea.ExecCommand, tea.ExecCallback) tea.Cmd
 }
 
 func NewModel(projects []project.Project, icons icon.Mode) Model {
@@ -444,8 +487,9 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 	projectList.StatusMessageLifetime = 6 * time.Second
 	// The status bar already says "No items"; the inspector explains why.
 	projectList.Styles.NoItems = lipgloss.NewStyle().Transform(func(string) string { return "" })
-	projectList.SetShowHelp(false) // replaced by footerView
-	projectList.SetSize(80, 24-footerHeight)
+	projectList.SetShowHelp(false)  // replaced by footerView
+	projectList.SetShowTitle(false) // replaced by headerView
+	projectList.SetSize(80, 24-footerHeight-headerHeight)
 	// f and d are page keys in the list; they are ForgePath actions here.
 	projectList.KeyMap.NextPage.SetKeys("right", "l", "pgdown")
 
@@ -457,6 +501,8 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 		home:       home,
 		previews:   map[string][]previewEntry{},
 		gitDetails: map[string]*gitDetailsEntry{},
+		runPlans:   map[string]runPlanEntry{},
+		exec:       tea.Exec,
 	}
 	if len(projects) == 0 && options.StartPath != "" {
 		if _, err := model.showDirectory(options.StartPath); err != nil {
@@ -513,7 +559,17 @@ func (m Model) update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(command, m.newErrorMessage(fmt.Errorf("could not open %s: %w", message.editor, message.err)))
 		}
 		return m, tea.Batch(command, m.newSuccessMessage("Opened "+filepath.Base(message.path)+" in "+message.editor))
+	case runFinishedMsg:
+		return m, m.runFinished(message)
+	case statusExpiredMsg:
+		if message.id == m.statusID {
+			m.status = ""
+		}
+		return m, nil
 	case tea.KeyPressMsg:
+		if message.String() != "r" {
+			m.pendingRun = ""
+		}
 		if message.String() == "ctrl+c" {
 			m.cancelled = true
 			return m, tea.Quit
@@ -545,6 +601,11 @@ func (m Model) update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, m.toggleFavorite()
+		case "r":
+			if m.mode != projectScreen && m.mode != directoryScreen {
+				return m, nil
+			}
+			return m, m.runSelected()
 		case "!":
 			if m.mode != projectScreen {
 				return m, nil
@@ -589,7 +650,7 @@ func (m Model) View() tea.View {
 		}
 		footer = strings.Join(lines, "\n")
 	}
-	view := tea.NewView(m.bodyView() + "\n\n" + footer)
+	view := tea.NewView(m.headerView() + "\n" + m.bodyView() + "\n\n" + footer)
 	view.AltScreen = true
 	view.WindowTitle = "ForgePath project browser"
 	return view
@@ -613,7 +674,7 @@ func (m *Model) newErrorMessage(err error) tea.Cmd {
 		Padding(0, 1).
 		Render("ERROR") + " " +
 		lipgloss.NewStyle().Foreground(palette.danger).Render(safeTerminalText(err.Error()))
-	return m.list.NewStatusMessage(msg)
+	return m.setStatus(msg)
 }
 
 func (m *Model) newHintMessage(text string) tea.Cmd {
@@ -624,7 +685,7 @@ func (m *Model) newHintMessage(text string) tea.Cmd {
 		Padding(0, 1).
 		Render("TIP") + " " +
 		lipgloss.NewStyle().Foreground(palette.bright).Render(safeTerminalText(text))
-	return m.list.NewStatusMessage(msg)
+	return m.setStatus(msg)
 }
 
 // toggleFavorite flips the highlighted project's favorite flag, keeps the
@@ -685,7 +746,7 @@ func (m *Model) newSuccessMessage(text string) tea.Cmd {
 		Padding(0, 1).
 		Render("OK") + " " +
 		lipgloss.NewStyle().Foreground(palette.success).Render(safeTerminalText(text))
-	return m.list.NewStatusMessage(msg)
+	return m.setStatus(msg)
 }
 
 func Select(ctx context.Context, projects []project.Project, icons icon.Mode, input io.Reader, output io.Writer) (project.Project, bool, error) {

@@ -37,7 +37,7 @@ func TestBangShowsOnlyProjectsWithChanges(t *testing.T) {
 	if names := strings.Join(visibleProjectNames(model), ","); names != "api,docs,web,worker" {
 		t.Fatalf("visible after second ! = %s, want every project", names)
 	}
-	if footer := ansi.Strip(model.footerView()); !strings.Contains(footer, "! changes only") {
+	if footer := ansi.Strip(model.footerView()); !strings.Contains(footer, "! changed") {
 		t.Fatalf("footer = %q, want the filter action", footer)
 	}
 }
