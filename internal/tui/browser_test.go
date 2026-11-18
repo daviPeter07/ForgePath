@@ -241,54 +241,19 @@ func TestReadDirectoriesSkipsFilesAndGeneratedFolders(t *testing.T) {
 	}
 }
 
-func TestGraphicRowsKeepTextAligned(t *testing.T) {
-	item := projectItem{
-		project: project.Project{Name: "forgepath", Path: "/work/forgepath", Technology: project.TechnologyGo},
-		icons:   icon.ModeGraphics,
-	}
-	model := list.New([]list.Item{testItem("selected"), item}, projectDelegate{graphics: true}, 80, 20)
-	var output strings.Builder
-	projectDelegate{graphics: true}.Render(&output, model, 1, item)
-
-	lines := strings.Split(ansi.Strip(output.String()), "\n")
-	if len(lines) < 2 {
-		t.Fatalf("rendered %d lines, want at least 2: %q", len(lines), output.String())
-	}
-	column := func(line, text string) int {
-		index := strings.Index(line, text)
-		if index < 0 {
-			return -1
-		}
-		return ansi.StringWidth(line[:index]) // columns, not bytes: icon pixels are multi-byte
-	}
-	nameColumn := column(lines[0], "forgepath")
-	descriptionColumn := column(lines[1], "Go")
-	if nameColumn < 0 || nameColumn != descriptionColumn {
-		t.Fatalf("name column %d != description column %d:\n%s", nameColumn, descriptionColumn, strings.Join(lines, "\n"))
-	}
-	width := ansi.StringWidth(lines[0])
-	for index, line := range lines {
-		if ansi.StringWidth(line) != width {
-			t.Fatalf("line %d width = %d, want %d:\n%s", index, ansi.StringWidth(line), width, strings.Join(lines, "\n"))
-		}
-	}
-}
-
-func TestFavoriteStarIsHighlightedInGraphicMode(t *testing.T) {
+func TestFavoriteStarIsHighlighted(t *testing.T) {
 	item := projectItem{
 		project: project.Project{Name: "forgepath", Path: "/work/forgepath", Technology: project.TechnologyGo, Favorite: true},
 		icons:   icon.ModeGraphics,
 	}
-	model := list.New([]list.Item{testItem("selected"), item}, projectDelegate{graphics: true}, 80, 20)
-	var output strings.Builder
-	projectDelegate{graphics: true}.Render(&output, model, 1, item)
-
-	if !strings.Contains(output.String(), "★") {
-		t.Fatalf("render = %q, want favorite star", output.String())
-	}
-	// The star must carry its own foreground color, not the plain name style.
-	if !strings.Contains(output.String(), "250;204;21") {
-		t.Fatalf("favorite star is not colored: %q", output.String())
+	for _, compact := range []bool{false, true} {
+		delegate := projectDelegate{compact: compact}
+		model := list.New([]list.Item{testItem("selected"), item}, delegate, 80, 20)
+		var output strings.Builder
+		delegate.Render(&output, model, 1, item)
+		if !strings.Contains(output.String(), "★") || !strings.Contains(output.String(), "250;204;21") {
+			t.Fatalf("compact=%t: favorite star missing or not colored: %q", compact, output.String())
+		}
 	}
 }
 

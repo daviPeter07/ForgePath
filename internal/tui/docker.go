@@ -82,7 +82,7 @@ func generateDockerOptions(path string, tech project.Technology) []dockerItem {
 
 	options = append(options, dockerItem{
 		label:       "App + PostgreSQL + Redis",
-		description: "Generate docker-compose.yml with App, PostgreSQL and Redis services",
+		description: "App, PostgreSQL 15 and Redis 7",
 		projectPath: path,
 		compose: `services:
   app:
@@ -125,7 +125,7 @@ volumes:
 
 	options = append(options, dockerItem{
 		label:       "App + MySQL + Redis",
-		description: "Generate docker-compose.yml with App, MySQL and Redis services",
+		description: "App, MySQL 8 and Redis 7",
 		projectPath: path,
 		compose: `services:
   app:
@@ -169,7 +169,7 @@ volumes:
 
 	options = append(options, dockerItem{
 		label:       "App + PostgreSQL",
-		description: "Generate docker-compose.yml with App and PostgreSQL services",
+		description: "App and PostgreSQL 15",
 		projectPath: path,
 		compose: `services:
   app:
@@ -203,7 +203,7 @@ volumes:
 
 	options = append(options, dockerItem{
 		label:       "App + MySQL",
-		description: "Generate docker-compose.yml with App and MySQL services",
+		description: "App and MySQL 8",
 		projectPath: path,
 		compose: `services:
   app:
@@ -238,7 +238,7 @@ volumes:
 
 	options = append(options, dockerItem{
 		label:       "PostgreSQL Database Only",
-		description: "Generate docker-compose.yml for a standalone PostgreSQL database",
+		description: "PostgreSQL 15 on port 5432",
 		projectPath: path,
 		compose: `services:
   db:
@@ -259,7 +259,7 @@ volumes:
 
 	options = append(options, dockerItem{
 		label:       "MySQL Database Only",
-		description: "Generate docker-compose.yml for a standalone MySQL database",
+		description: "MySQL 8 on port 3306",
 		projectPath: path,
 		compose: `services:
   db:
@@ -281,7 +281,7 @@ volumes:
 
 	options = append(options, dockerItem{
 		label:       "Redis Server Only",
-		description: "Generate docker-compose.yml for a standalone Redis server",
+		description: "Redis 7 on port 6379",
 		projectPath: path,
 		compose: `services:
   redis:

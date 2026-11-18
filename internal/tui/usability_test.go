@@ -121,7 +121,7 @@ func TestSubtitleShowsRecencyAndHighlightsChanges(t *testing.T) {
 		},
 		now: fixedNow,
 	}
-	subtitle := renderSubtitle(item, newRowStyles(false))
+	subtitle := renderSubtitle(item, newRowStyles(false), false)
 	plain := ansi.Strip(subtitle)
 	for _, want := range []string{"Go", "main ●", "work", "2h ago"} {
 		if !strings.Contains(plain, want) {

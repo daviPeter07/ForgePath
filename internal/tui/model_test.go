@@ -114,11 +114,11 @@ func TestSelectHonorsCancelledContext(t *testing.T) {
 
 func TestModelHandlesWindowResize(t *testing.T) {
 	model := testModel()
-	updated, _ := model.Update(tea.WindowSizeMsg{Width: 100, Height: 36})
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 96, Height: 36})
 	model = updated.(Model)
 
-	if model.list.Width() != 100 || model.list.Height() != 36-footerHeight {
-		t.Fatalf("list size = %dx%d, want 100x%d (window minus footer)", model.list.Width(), model.list.Height(), 36-footerHeight)
+	if model.list.Width() != 96 || model.list.Height() != 36-footerHeight {
+		t.Fatalf("list size = %dx%d, want 96x%d (window minus footer)", model.list.Width(), model.list.Height(), 36-footerHeight)
 	}
 	if lines := strings.Count(model.View().Content, "\n") + 1; lines != 36 {
 		t.Fatalf("view has %d lines, want the window height 36", lines)
@@ -262,44 +262,35 @@ func TestPortableViewDoesNotRequireNerdFont(t *testing.T) {
 	}
 }
 
-func TestGraphicViewRendersEmbeddedTechnologyLogo(t *testing.T) {
+func TestGraphicsModeRowsUseTextBadges(t *testing.T) {
+	// Logos are only legible at inspector size; list rows keep text badges.
 	model := NewModel([]project.Project{{Name: "api", Technology: project.TechnologyGo}}, icon.ModeGraphics)
 	view := model.View().Content
-	if !strings.Contains(view, "38;2;") || !strings.Contains(view, "api") {
-		t.Fatalf("graphic View() missing ANSI logo or project name: %q", view)
+	if !strings.Contains(view, "[GO]") || !strings.Contains(view, "api") {
+		t.Fatalf("graphics View() missing badge or project name: %q", view)
 	}
-	if height := (projectDelegate{graphics: true}).Height(); height != 4 {
-		t.Fatalf("graphic delegate height = %d, want 4", height)
+	if strings.Contains(view, "▀") {
+		t.Fatalf("narrow graphics View() drew a tiny logo in the list: %q", view)
+	}
+	if height := (projectDelegate{}).Height(); height != 2 {
+		t.Fatalf("delegate height = %d, want 2", height)
 	}
 }
 
-func TestGraphicProjectDelegateDoesNotWrapLongRows(t *testing.T) {
+func TestProjectRowsDoNotWrapLongNames(t *testing.T) {
 	item := projectItem{project: project.Project{
 		Name:       strings.Repeat("long-project-name-", 8),
 		Technology: project.TechnologyTypeScript,
 		Frameworks: []project.Framework{project.FrameworkNextJS, project.FrameworkReact, project.FrameworkVue},
 	}, icons: icon.ModeGraphics}
-	model := list.New([]list.Item{item}, projectDelegate{graphics: true}, 24, 12)
+	model := list.New([]list.Item{item}, projectDelegate{}, 24, 12)
 	var output bytes.Buffer
-	(projectDelegate{graphics: true}).Render(&output, model, 0, item)
-	if width, height := lipgloss.Width(output.String()), lipgloss.Height(output.String()); width > 20 || height > 4 {
-		t.Fatalf("graphic item size = %dx%d, want at most 20x4: %q", width, height, output.String())
+	(projectDelegate{}).Render(&output, model, 0, item)
+	if width, height := lipgloss.Width(output.String()), lipgloss.Height(output.String()); width > 20 || height > 2 {
+		t.Fatalf("item size = %dx%d, want at most 20x2: %q", width, height, output.String())
 	}
 	if !strings.Contains(output.String(), "long-") {
-		t.Fatalf("graphic item clipped the project name: %q", output.String())
-	}
-}
-
-func TestGraphicProjectDelegateFallsBackInNarrowTerminal(t *testing.T) {
-	item := projectItem{project: project.Project{Name: "api", Technology: project.TechnologyGo}, icons: icon.ModeGraphics}
-	model := list.New([]list.Item{item}, projectDelegate{graphics: true}, 14, 10)
-	var output bytes.Buffer
-	(projectDelegate{graphics: true}).Render(&output, model, 0, item)
-	if height := lipgloss.Height(output.String()); height > 2 {
-		t.Fatalf("narrow fallback height = %d, want text fallback", height)
-	}
-	if !strings.Contains(output.String(), "api") {
-		t.Fatalf("narrow fallback hid the project name: %q", output.String())
+		t.Fatalf("item clipped the project name: %q", output.String())
 	}
 }
 

@@ -140,11 +140,7 @@ func (m *Model) setScreen(mode screenMode, crumb, singular, plural string) {
 	m.list.ResetFilter()
 	m.list.Title = renderTitle(crumb)
 	m.list.SetStatusBarItemName(singular, plural)
-	if mode == projectScreen || mode == directoryScreen {
-		m.setProjectDelegate(m.list.Width())
-	} else {
-		m.list.SetDelegate(projectDelegate{})
-	}
+	m.list.SetDelegate(projectDelegate{compact: m.splitLayout()})
 }
 
 func (m *Model) showProjects() tea.Cmd {
@@ -162,10 +158,6 @@ func (m *Model) projectItems() []list.Item {
 		items[index] = projectItem{project: found, icons: m.options.Icons, now: now}
 	}
 	return items
-}
-
-func (m *Model) setProjectDelegate(width int) {
-	m.list.SetDelegate(projectDelegate{graphics: m.options.Icons == icon.ModeGraphics && width >= 20})
 }
 
 // browseRoot is the folder the breadcrumb starts from: the outermost project
