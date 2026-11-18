@@ -3,12 +3,14 @@ package tui
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -67,57 +69,38 @@ type editorOpenedMsg struct {
 }
 
 func renderDirectoryItem(writer io.Writer, model list.Model, index int, item directoryItem) {
-	badge := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#17111F")).
-		Background(palette.primary).
-		Padding(0, 1).
-		Render("DIR")
-	title := badge + "  " + lipgloss.NewStyle().Bold(true).Foreground(palette.text).Render(safeTerminalText(item.directory.Name))
-	description := lipgloss.NewStyle().Foreground(palette.muted).Render("Directory  ·  Enter to browse")
-	renderItemBlock(writer, model, index, title, description)
+	renderItemBlock(writer, model, index, badge("DIR", palette.muted), safeTerminalText(item.directory.Name), "Folder")
 }
 
 func renderEditorItem(writer io.Writer, model list.Model, index int, item editorItem) {
 	badgeColor := palette.primary
 	label := "Installed"
 	if item.recommended {
-		badgeColor = lipgloss.Color("#22C55E")
+		badgeColor = palette.success
 		label = "Suggested for " + string(item.technology)
 	} else if item.editor.Supports(item.technology) {
 		label = "Compatible with " + string(item.technology)
 	}
-	badge := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#17111F")).
-		Background(badgeColor).
-		Padding(0, 1).
-		Render("IDE")
-	title := badge + "  " + lipgloss.NewStyle().Bold(true).Foreground(palette.text).Render(item.editor.Name)
-	description := lipgloss.NewStyle().Foreground(palette.muted).Render(safeTerminalText(label + "  ·  " + item.editor.Executable))
-	renderItemBlock(writer, model, index, title, description)
+	renderItemBlock(writer, model, index, badge("IDE", badgeColor), safeTerminalText(item.editor.Name), safeTerminalText(label+"  ·  "+item.editor.Executable))
 }
 
-func renderItemBlock(writer io.Writer, model list.Model, index int, title, description string) {
-	width := model.Width() - 4
-	if width < 1 {
-		width = 1
-	}
-	lineWidth := width - 2
-	if lineWidth < 1 {
-		lineWidth = 1
-	}
-	content := ansi.Truncate(title, lineWidth, "…") + "\n" + ansi.Truncate(description, lineWidth, "…")
-	container := lipgloss.NewStyle().Width(width).MaxWidth(width).MaxHeight(2).PaddingLeft(2)
-	if index == model.Index() {
-		container = container.
-			Background(palette.surface).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderLeft(true).
-			BorderForeground(palette.primary).
-			PaddingLeft(1)
-	}
-	_, _ = fmt.Fprint(writer, container.Render(content))
+func badge(label string, background color.Color) string {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(palette.ink).
+		Background(background).
+		Padding(0, 1).
+		Render(label)
+}
+
+func renderItemBlock(writer io.Writer, model list.Model, index int, badge, title, description string) {
+	selected := index == model.Index()
+	styles := newRowStyles(selected)
+	width := max(model.Width()-4, 1)
+	lineWidth := max(width-2, 1)
+	content := ansi.Truncate(badge+styles.base.Render("  ")+styles.name.Render(title), lineWidth, "…") + "\n" +
+		ansi.Truncate(styles.meta.Render(description), lineWidth, "…")
+	_, _ = fmt.Fprint(writer, rowContainer(selected, width, 2).Render(content))
 }
 
 func readDirectories(path string) ([]Directory, error) {
@@ -144,14 +127,27 @@ func ignoredBrowserDirectory(name string) bool {
 	return found
 }
 
+// setScreen switches the list to a screen: header, help keys and item names.
+func (m *Model) setScreen(mode screenMode, crumb, singular, plural string) {
+	m.mode = mode
+	m.list.ResetFilter()
+	m.list.Title = renderTitle(crumb)
+	m.list.SetStatusBarItemName(singular, plural)
+	bindings := screenKeys[mode]
+	m.list.AdditionalShortHelpKeys = func() []key.Binding { return bindings }
+	m.list.AdditionalFullHelpKeys = func() []key.Binding { return bindings }
+	if mode == projectScreen || mode == directoryScreen {
+		m.setProjectDelegate(m.list.Width())
+	} else {
+		m.list.SetDelegate(projectDelegate{})
+	}
+}
+
 func (m *Model) showProjects() tea.Cmd {
-	m.mode = projectScreen
-	m.setProjectDelegate(m.list.Width())
+	m.setScreen(projectScreen, "Projects", "project", "projects")
 	m.currentPath = ""
 	m.currentProject = project.Project{}
-	m.list.ResetFilter()
-	m.list.Title = "  FORGEPATH  /  PROJECTS  "
-	m.list.SetStatusBarItemName("project", "projects")
+	m.parentProjects = nil
 	items := make([]list.Item, len(m.projects))
 	for index, found := range m.projects {
 		items[index] = projectItem{project: found, icons: m.options.Icons}
@@ -163,34 +159,41 @@ func (m *Model) setProjectDelegate(width int) {
 	m.list.SetDelegate(projectDelegate{graphics: m.options.Icons == icon.ModeGraphics && width >= 20})
 }
 
+// browseRoot is the folder the breadcrumb starts from: the outermost project
+// being browsed, or the start folder when no project was found.
+func (m *Model) browseRoot() string {
+	if len(m.parentProjects) > 0 && m.parentProjects[0].Path != "" {
+		return m.parentProjects[0].Path
+	}
+	if m.currentProject.Path != "" {
+		return m.currentProject.Path
+	}
+	return m.options.StartPath
+}
+
 func (m *Model) showDirectory(path string) (tea.Cmd, error) {
 	directories, err := m.options.ReadDirectories(path)
 	if err != nil {
 		return nil, err
 	}
-	m.mode = directoryScreen
-	m.list.SetDelegate(projectDelegate{graphics: m.options.Icons == icon.ModeGraphics && m.list.Width() >= 20})
 	m.currentPath = path
-	m.list.ResetFilter()
-	m.list.Title = "  FORGEPATH  /  " + safeTerminalText(filepath.Base(path)) + "  "
-	m.list.SetStatusBarItemName("item", "items")
+	m.setScreen(directoryScreen, breadcrumb(m.browseRoot(), path), "item", "items")
 	items := make([]list.Item, 0, len(directories))
 	for _, directory := range directories {
 		result, found, err := detector.Detect(directory.Path)
-		if err == nil && found {
-			p := project.Project{
-				Name:            directory.Name,
-				Path:            directory.Path,
-				Technology:      result.Technology,
-				Markers:         result.Markers,
-				Frameworks:      result.Frameworks,
-				PackageManagers: result.PackageManagers,
-				HasDocker:       result.HasDocker,
-			}
-			items = append(items, projectItem{project: p, icons: m.options.Icons})
-		} else {
+		if err != nil || !found {
 			items = append(items, directoryItem{directory: directory})
+			continue
 		}
+		items = append(items, projectItem{icons: m.options.Icons, project: project.Project{
+			Name:            directory.Name,
+			Path:            directory.Path,
+			Technology:      result.Technology,
+			Markers:         result.Markers,
+			Frameworks:      result.Frameworks,
+			PackageManagers: result.PackageManagers,
+			HasDocker:       result.HasDocker,
+		}})
 	}
 	return m.list.SetItems(items), nil
 }
@@ -198,8 +201,16 @@ func (m *Model) showDirectory(path string) (tea.Cmd, error) {
 func (m *Model) enterSelected() (tea.Cmd, error) {
 	switch item := m.list.SelectedItem().(type) {
 	case projectItem:
+		previous, previousParents := m.currentProject, m.parentProjects
+		if m.mode == directoryScreen {
+			m.parentProjects = append(append([]project.Project(nil), m.parentProjects...), m.currentProject)
+		}
 		m.currentProject = item.project
-		return m.showDirectory(item.project.Path)
+		command, err := m.showDirectory(item.project.Path)
+		if err != nil {
+			m.currentProject, m.parentProjects = previous, previousParents
+		}
+		return command, err
 	case directoryItem:
 		return m.showDirectory(item.directory.Path)
 	case editorItem:
@@ -211,18 +222,31 @@ func (m *Model) enterSelected() (tea.Cmd, error) {
 	}
 }
 
+func (m *Model) returnFromAction() tea.Cmd {
+	if m.returnMode == projectScreen {
+		return m.showProjects()
+	}
+	command, err := m.showDirectory(m.currentPath)
+	if err != nil {
+		return tea.Batch(m.showProjects(), m.newErrorMessage(fmt.Errorf("could not reopen directory: %w", err)))
+	}
+	return command
+}
+
 func (m *Model) goBack() (tea.Cmd, error) {
 	switch m.mode {
 	case editorScreen, dockerScreen:
 		m.editorRequest++
 		m.editorOpening = false
-		if m.returnMode == projectScreen {
-			return m.showProjects(), nil
-		}
-		return m.showDirectory(m.currentPath)
+		return m.returnFromAction(), nil
 	case directoryScreen:
-		if samePath(m.currentPath, m.currentProject.Path) {
-			return m.showProjects(), nil
+		if m.currentProject.Path != "" && samePath(m.currentPath, m.currentProject.Path) {
+			if len(m.parentProjects) == 0 {
+				return m.showProjects(), nil
+			}
+			last := len(m.parentProjects) - 1
+			m.currentProject = m.parentProjects[last]
+			m.parentProjects = m.parentProjects[:last]
 		}
 		return m.showDirectory(filepath.Dir(m.currentPath))
 	default:
@@ -230,22 +254,34 @@ func (m *Model) goBack() (tea.Cmd, error) {
 	}
 }
 
-func (m *Model) showEditors() tea.Cmd {
-	var path string
-	var selectedProject project.Project
-	switch item := m.list.SelectedItem().(type) {
-	case projectItem:
-		path = item.project.Path
-		selectedProject = item.project
-	case directoryItem:
-		path = m.currentPath
-		selectedProject = m.currentProject
-	default:
-		if m.mode == directoryScreen {
-			path = m.currentPath
-			selectedProject = m.currentProject
+// actionTarget is the folder an action (IDE, compose) applies to: the
+// highlighted project on the project list, otherwise the displayed folder.
+func (m *Model) actionTarget() (string, project.Project) {
+	switch m.mode {
+	case projectScreen:
+		if item, ok := m.list.SelectedItem().(projectItem); ok {
+			return item.project.Path, item.project
 		}
+	case directoryScreen:
+		if item, ok := m.list.SelectedItem().(projectItem); ok {
+			return item.project.Path, item.project
+		}
+		return m.currentPath, m.currentProject
 	}
+	return "", project.Project{}
+}
+
+// targetName labels an action target by its project name when the target is
+// the project itself, and by its folder name otherwise.
+func targetName(path string, target project.Project) string {
+	if target.Name != "" && samePath(path, target.Path) {
+		return target.Name
+	}
+	return filepath.Base(path)
+}
+
+func (m *Model) showEditors() tea.Cmd {
+	path, selectedProject := m.actionTarget()
 	if path == "" {
 		return nil
 	}
@@ -256,14 +292,10 @@ func (m *Model) showEditors() tea.Cmd {
 	m.returnMode = m.mode
 	m.editorPath = path
 	m.editorProject = selectedProject
-	m.mode = editorScreen
-	m.list.SetDelegate(projectDelegate{})
-	m.list.ResetFilter()
-	m.list.Title = "  OPEN " + safeTerminalText(filepath.Base(path)) + " WITH…  "
-	m.list.SetStatusBarItemName("installed IDE", "installed IDEs")
+	m.setScreen(editorScreen, targetName(path, selectedProject)+breadcrumbSeparator+"Open with…", "installed IDE", "installed IDEs")
 	items := make([]list.Item, len(ranked))
 	for index, editor := range ranked {
-		items[index] = editorItem{editor: editor, technology: selectedProject.Technology, recommended: index == 0}
+		items[index] = editorItem{editor: editor, technology: selectedProject.Technology, recommended: index == 0 && editor.Supports(selectedProject.Technology)}
 	}
 	return m.list.SetItems(items)
 }
@@ -279,34 +311,37 @@ func (m *Model) openSelectedEditor(item editorItem) tea.Cmd {
 	request := m.editorRequest
 	m.editorOpening = true
 	ctx := m.options.Context
+	openEditor := m.options.OpenEditor
 	path := m.editorPath
 	selectedProject := m.editorProject
 	editor := item.editor
 	return func() tea.Msg {
-		err := m.options.OpenEditor(ctx, path, selectedProject, editor)
+		err := openEditor(ctx, path, selectedProject, editor)
 		return editorOpenedMsg{request: request, editor: editor.Name, path: path, err: err}
 	}
 }
 
+// confirmCurrentDirectory selects the folder the user is looking at: the
+// highlighted project on the project list, otherwise the displayed folder.
 func (m *Model) confirmCurrentDirectory() tea.Cmd {
-	selected := m.currentProject
-	switch item := m.list.SelectedItem().(type) {
-	case projectItem:
+	var selected project.Project
+	switch m.mode {
+	case projectScreen:
+		item, ok := m.list.SelectedItem().(projectItem)
+		if !ok {
+			return nil
+		}
 		selected = item.project
-	case directoryItem:
+	case directoryScreen:
+		selected = m.currentProject
 		selected.Path = m.currentPath
 		selected.Name = filepath.Base(m.currentPath)
+	case editorScreen:
+		selected = m.editorProject
+		selected.Path = m.editorPath
+		selected.Name = filepath.Base(m.editorPath)
 	default:
-		if m.mode == editorScreen {
-			selected = m.editorProject
-			selected.Path = m.editorPath
-			selected.Name = filepath.Base(m.editorPath)
-		} else if m.mode != directoryScreen {
-			return nil
-		} else {
-			selected.Path = m.currentPath
-			selected.Name = filepath.Base(m.currentPath)
-		}
+		return nil
 	}
 	m.selected = selected
 	m.hasSelection = true
