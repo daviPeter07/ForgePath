@@ -23,7 +23,7 @@ const (
 	splitMinWidth = 100
 	inspectorGap  = 2
 	// inspectorTop aligns the panel with the list's status line.
-	inspectorTop = 2
+	inspectorTop = 1
 	maxLogoSize  = 20
 	minLogoSize  = 8
 	logoGap      = 3
@@ -150,6 +150,14 @@ func (m Model) projectInspector(found project.Project, width, height int) string
 	if logo == "" {
 		return block
 	}
+	// Every line must fit the text column: JoinHorizontal pads all lines to
+	// the widest one, so one long line would push the whole block past the
+	// panel edge.
+	lines := strings.Split(block, "\n")
+	for index, line := range lines {
+		lines[index] = ansi.Truncate(line, max(textWidth, 1), "…")
+	}
+	block = strings.Join(lines, "\n")
 	return lipgloss.JoinHorizontal(lipgloss.Top, logo, strings.Repeat(" ", logoGap), block)
 }
 

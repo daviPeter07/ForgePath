@@ -70,16 +70,23 @@ func (m *Model) setStatus(text string) tea.Cmd {
 	return tea.Tick(statusLifetime, func(time.Time) tea.Msg { return statusExpiredMsg{id: id} })
 }
 
+// headerView is the breadcrumb and the status message. When both do not fit,
+// the message wins over the breadcrumb trail: it is short-lived and often
+// the thing the user needs to read.
 func (m Model) headerView() string {
-	header := m.list.Title
-	if m.status != "" && !m.list.SettingFilter() {
-		header += "  " + m.status
-	}
 	width := m.width
 	if width <= 0 {
 		width = m.list.Width()
 	}
-	return " " + ansi.Truncate(header, max(width-1, 1), "…")
+	room := max(width-2, 1)
+	header := m.list.Title
+	if m.status != "" && !m.list.SettingFilter() {
+		header += "  " + m.status
+		if ansi.StringWidth(header) > room {
+			header = renderBrand() + "  " + m.status
+		}
+	}
+	return "  " + ansi.Truncate(header, room, "…")
 }
 
 // footerView replaces the list's one-line help with two lines, navigation and
@@ -133,9 +140,13 @@ var palette = themes[ThemeDark]
 
 const breadcrumbSeparator = " › "
 
+func renderBrand() string {
+	return lipgloss.NewStyle().Bold(true).Foreground(palette.ink).Background(palette.primary).Padding(0, 1).Render("◆ FORGEPATH")
+}
+
 // renderTitle draws the header as a brand chip followed by a breadcrumb.
 func renderTitle(crumb string) string {
-	brand := lipgloss.NewStyle().Bold(true).Foreground(palette.ink).Background(palette.primary).Padding(0, 1).Render("◆ FORGEPATH")
+	brand := renderBrand()
 	trail := lipgloss.NewStyle().Bold(true).Foreground(palette.bright).Background(palette.surface).Padding(0, 1).Render(safeTerminalText(crumb))
 	return brand + trail
 }

@@ -125,3 +125,20 @@ func TestGitDetailsAreNotLoadedOnNarrowTerminals(t *testing.T) {
 		t.Fatal("details were loaded although the inspector is hidden")
 	}
 }
+
+func TestOneLongInspectorLineDoesNotTruncateTheOthers(t *testing.T) {
+	model, command := gitModel(t, func(context.Context, string) (git.Details, error) {
+		return git.Details{Upstream: "origin/" + strings.Repeat("very-long-branch-", 6), Ahead: 3, Behind: 2}, nil
+	})
+	model.options.Icons = icon.ModeGraphics
+	model = runCommands(t, model, command)
+	truncated := 0
+	for _, line := range strings.Split(ansi.Strip(model.View().Content), "\n") {
+		if strings.Contains(line, "…") {
+			truncated++
+		}
+	}
+	if truncated > 1 {
+		t.Fatalf("%d lines were truncated; only the long remote line should be:\n%s", truncated, ansi.Strip(model.View().Content))
+	}
+}
