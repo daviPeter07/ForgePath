@@ -16,7 +16,7 @@ ForgePath centralizes this workflow in an interactive terminal interface.
 
 ![ForgePath CLI Demonstration](docs/demo.png)
 
-*A quick demonstration of ForgePath in action, including project navigation and Docker Compose generation.*
+*The project list: favorites first, recent projects with when they were last opened, the Git branch with ● for uncommitted changes, and the footer with every action of the screen.*
 
 ## Goals
 

@@ -16,7 +16,7 @@ O ForgePath centraliza esse fluxo de trabalho em uma interface interativa de ter
 
 ![Demonstração do ForgePath CLI](docs/demo.png)
 
-*Uma rápida demonstração do ForgePath em ação, incluindo navegação de projetos e geração de Docker Compose.*
+*A lista de projetos: favoritos primeiro, projetos recentes com quando foram abertos pela última vez, a branch Git com ● para mudanças não commitadas e o rodapé com todas as ações da tela.*
 
 ## Objetivos
 
