@@ -145,7 +145,11 @@ func (m *Model) setScreen(mode screenMode, crumb, singular, plural string) {
 }
 
 func (m *Model) showProjects() tea.Cmd {
-	m.setScreen(projectScreen, "Projects", "project", "projects")
+	crumb := "Projects"
+	if m.changesOnly {
+		crumb += breadcrumbSeparator + "With changes"
+	}
+	m.setScreen(projectScreen, crumb, "project", "projects")
 	m.currentPath = ""
 	m.currentProject = project.Project{}
 	m.parentProjects = nil
@@ -154,9 +158,12 @@ func (m *Model) showProjects() tea.Cmd {
 
 func (m *Model) projectItems() []list.Item {
 	now := m.options.Now()
-	items := make([]list.Item, len(m.projects))
-	for index, found := range m.projects {
-		items[index] = projectItem{project: found, icons: m.options.Icons, now: now}
+	items := make([]list.Item, 0, len(m.projects))
+	for _, found := range m.projects {
+		if m.changesOnly && !found.GitDirty {
+			continue
+		}
+		items = append(items, projectItem{project: found, icons: m.options.Icons, now: now})
 	}
 	return items
 }

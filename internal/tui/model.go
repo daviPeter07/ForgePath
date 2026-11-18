@@ -73,6 +73,13 @@ func (m Model) footerView() string {
 		}
 		actions = append(actions, binding)
 	}
+	if m.mode == projectScreen {
+		description := "changes only"
+		if m.changesOnly {
+			description = "show all"
+		}
+		actions = append(actions, key.NewBinding(key.WithKeys("!"), key.WithHelp("!", description)))
+	}
 	return renderKeyLine("navigate", navigation) + "\n" + renderKeyLine("actions", actions)
 }
 
@@ -84,7 +91,7 @@ func renderKeyLine(label string, bindings []key.Binding) string {
 		parts[index] = keyStyle.Render(binding.Help().Key) + " " + descriptionStyle.Render(binding.Help().Desc)
 	}
 	labelStyle := lipgloss.NewStyle().Foreground(palette.primary).Width(10)
-	return "  " + labelStyle.Render(label) + strings.Join(parts, descriptionStyle.Render("  ·  "))
+	return "  " + labelStyle.Render(label) + strings.Join(parts, descriptionStyle.Render(" · "))
 }
 
 var palette = struct {
@@ -423,9 +430,11 @@ type Model struct {
 	hasSelection   bool
 	cancelled      bool
 	initCommand    tea.Cmd
-	width, height  int
-	home           string
-	previews       map[string][]previewEntry
+	// changesOnly limits the project list to projects with uncommitted changes.
+	changesOnly   bool
+	width, height int
+	home          string
+	previews      map[string][]previewEntry
 }
 
 func NewModel(projects []project.Project, icons icon.Mode) Model {
@@ -528,6 +537,12 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, m.toggleFavorite()
+		case "!":
+			if m.mode != projectScreen {
+				return m, nil
+			}
+			m.changesOnly = !m.changesOnly
+			return m, m.showProjects()
 		case "backspace", "left":
 			command, err := m.goBack()
 			if err != nil {
@@ -558,7 +573,15 @@ func (m Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
-	view := tea.NewView(m.bodyView() + "\n\n" + m.footerView())
+	footer := m.footerView()
+	if m.width > 0 {
+		lines := strings.Split(footer, "\n")
+		for index, line := range lines {
+			lines[index] = ansi.Truncate(line, m.width, "…")
+		}
+		footer = strings.Join(lines, "\n")
+	}
+	view := tea.NewView(m.bodyView() + "\n\n" + footer)
 	view.AltScreen = true
 	view.WindowTitle = "ForgePath project browser"
 	return view

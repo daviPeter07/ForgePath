@@ -101,6 +101,9 @@ func (m Model) emptyInspector(height int) string {
 	if m.mode == directoryScreen && m.currentPath != "" {
 		return m.folderInspector(Directory{Name: filepath.Base(m.currentPath), Path: m.currentPath}, height)
 	}
+	if m.mode == projectScreen && m.changesOnly && len(m.projects) > 0 {
+		return heading("Every project is committed", mutedStyle().Render("No project has uncommitted changes. Press ! to show all."))
+	}
 	return heading("No projects yet", mutedStyle().Render("ForgePath lists the project folders inside your workspaces.")) +
 		"\n\n" + renderFacts([]fact{{"add one", "fg workspace add <folder>"}, {"or browse", "run fg inside a folder"}})
 }
