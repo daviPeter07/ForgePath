@@ -91,7 +91,7 @@ func TestRootCommandOpensSelector(t *testing.T) {
 
 	var stdout bytes.Buffer
 	command := NewRootCommand(&stdout, &bytes.Buffer{})
-	command.SetIn(strings.NewReader("c"))
+	command.SetIn(strings.NewReader("\rc")) // fg opens in the current folder: enter app, then cd
 	command.SetArgs([]string{"--icons", "nerd-font", "--refresh"})
 
 	if err := command.Execute(); err != nil {
@@ -159,7 +159,7 @@ func TestRootCommandUsesCurrentDirectoryFromAnyDirectory(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.json")
 	var stdout bytes.Buffer
 	command := NewRootCommand(&stdout, &bytes.Buffer{})
-	command.SetIn(strings.NewReader("c"))
+	command.SetIn(strings.NewReader("\rc"))
 	command.SetArgs([]string{"--config", configPath, "--icons", "ascii"})
 	if err := command.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)

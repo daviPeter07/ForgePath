@@ -252,13 +252,15 @@ fg workspace list
 
 Um workspace é a pasta que *contém* as pastas dos seus projetos: o ForgePath analisa as subpastas diretas dela. O `fg workspace add` informa quantos projetos encontrou e avisa quando a pasta está vazia ou é ela própria um projeto.
 
-Com pelo menos um workspace configurado, `fg`, `list` e `pick` mostram os projetos de todos os workspaces, e `open`, `reveal`, `run` e `favorite` encontram um projeto pelo nome em qualquer um deles. Sem workspaces, o ForgePath usa o diretório atual. Informe um workspace como argumento para limitar o comando a uma pasta; é assim também que se escolhe um projeto cujo nome existe em mais de um workspace.
+Com pelo menos um workspace configurado, `list` e a lista de projetos do seletor (`p`, ou `fg --projects`) mostram os projetos de todos os workspaces, e `open`, `reveal`, `run` e `favorite` encontram um projeto pelo nome em qualquer um deles. Sem workspaces, o ForgePath usa o diretório atual. Informe um workspace como argumento para limitar o comando a uma pasta; é assim também que se escolhe um projeto cujo nome existe em mais de um workspace.
 
 ```bash
-fg
+fg                  # navega na pasta atual
+fg ~/Desktop/work   # navega em outra pasta
+fg --projects       # começa na lista de projetos
 ```
 
-Abre o navegador persistente do terminal. Pesquisar, entrar nos projetos e subdiretórios, voltar e iniciar uma IDE acontecem sem interromper o ForgePath.
+Abre o navegador persistente do terminal na pasta atual, ou na pasta informada. `Enter` entra numa pasta e `Backspace`/`←` sobe para a pasta pai, inclusive acima da pasta em que você começou. Pastas que são projetos mostram a tecnologia, e `c` muda o shell para a pasta exibida. `p` alterna para a lista de projetos dos seus workspaces e volta para a mesma pasta. Pesquisar e iniciar uma IDE também acontecem sem interromper o ForgePath.
 
 O seletor verifica os executáveis instalados antes de exibi-los e prioriza ferramentas específicas da tecnologia. Por exemplo, um projeto PHP sugere PhpStorm antes do Visual Studio Code quando ambos estão instalados; TypeScript prioriza WebStorm, Python prioriza PyCharm, Go prioriza GoLand, Java prioriza IntelliJ IDEA e Rust prioriza RustRover.
 
@@ -291,6 +293,7 @@ O ForgePath verifica o `PATH` e locais comuns de instalação. A descoberta cobr
 | `c` | Fecha o ForgePath e muda o shell para o diretório exibido |
 | `f` | Adiciona ou remove o projeto selecionado dos favoritos (lista de projetos) |
 | `r` | Executa o comando de desenvolvimento do projeto selecionado; um comando detectado pede um segundo `r` antes. `Ctrl+C` interrompe e volta ao seletor |
+| `p` | Alterna entre o navegador de pastas e a lista de projetos dos seus workspaces |
 | `!` | Mostra só os projetos com mudanças não commitadas, ou todos de novo (lista de projetos) |
 | `Esc` | Fecha a pesquisa ou retorna à tela interna anterior |
 | `q` / `Ctrl+C` | Encerra sem alterar o diretório do shell |
@@ -313,7 +316,7 @@ Analisa um workspace e reconstrói seu cache de projetos. `fg`, `list` e `pick` 
 fg pick --print-path
 ```
 
-Navega pelos projetos e imprime o diretório atual somente depois que `c` é pressionado. Essa saída legível por máquina é usada pela integração com o shell.
+Navega como o `fg` e imprime a pasta exibida somente depois que `c` é pressionado. Essa saída legível por máquina é usada pela integração com o shell.
 
 Em terminais com pelo menos 100 colunas, o seletor mostra um painel de inspeção ao lado da lista. Em terminais truecolor o painel desenha o logo da tecnologia: os SVGs do Devicon são incorporados ao binário, rasterizados em 20×20 pixels e desenhados com caracteres ANSI de meio bloco, sem exigir Nerd Font nem um protocolo de imagens específico do terminal. As linhas da lista sempre usam badges de texto compactos. Para usar badges ou glifos Nerd Font em tudo:
 

@@ -191,13 +191,52 @@ func (m *Model) browseRoot() string {
 	return m.options.StartPath
 }
 
+// browseState is where the folder browser was, so p can return to it.
+type browseState struct {
+	path    string
+	project project.Project
+	parents []project.Project
+}
+
+// toggleProjects switches from the folder browser to the project list and
+// back to the same folder.
+func (m *Model) toggleProjects() tea.Cmd {
+	switch {
+	case m.mode == directoryScreen:
+		m.folderBeforeProjects = &browseState{path: m.currentPath, project: m.currentProject, parents: m.parentProjects}
+		return m.showProjects()
+	case m.mode == projectScreen && m.folderBeforeProjects != nil:
+		state := *m.folderBeforeProjects
+		m.currentProject, m.parentProjects = state.project, state.parents
+		command, err := m.showDirectory(state.path)
+		if err != nil {
+			return m.newErrorMessage(fmt.Errorf("could not reopen folder: %w", err))
+		}
+		m.folderBeforeProjects = nil
+		return command
+	}
+	return nil
+}
+
+// crumbFor names a folder relative to where browsing started, or by its path
+// (with ~ for home) once browsing has gone above it.
+func (m *Model) crumbFor(path string) string {
+	root := m.browseRoot()
+	if root != "" {
+		if relative, err := filepath.Rel(root, path); err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return breadcrumb(root, path)
+		}
+	}
+	return truncateStart(shortenHome(path, m.home), maxCrumbWidth)
+}
+
 func (m *Model) showDirectory(path string) (tea.Cmd, error) {
 	directories, err := m.options.ReadDirectories(path)
 	if err != nil {
 		return nil, err
 	}
 	m.currentPath = path
-	m.setScreen(directoryScreen, breadcrumb(m.browseRoot(), path), "item", "items")
+	m.setScreen(directoryScreen, m.crumbFor(path), "item", "items")
 	items := make([]list.Item, 0, len(directories))
 	for _, directory := range directories {
 		result, found, err := detector.Detect(directory.Path)

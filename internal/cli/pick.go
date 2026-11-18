@@ -32,8 +32,8 @@ func newPickCommandWithScanner(scan scanProjectsFunc, statePaths ...statePathFun
 	var iconMode string
 	var refresh bool
 	command := &cobra.Command{
-		Use:   "pick [workspace]",
-		Short: "Select a project and print its path",
+		Use:   "pick [folder]",
+		Short: "Browse folders and projects, printing the folder chosen with c",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			icons, err := icon.ParseMode(iconMode)
@@ -46,6 +46,7 @@ func newPickCommandWithScanner(scan scanProjectsFunc, statePaths ...statePathFun
 	command.Flags().Bool("print-path", false, "print only the selected project path")
 	command.Flags().StringVar(&iconMode, "icons", string(icon.ModeAuto), "icon mode: auto, graphics, ascii, or nerd-font")
 	command.Flags().String("theme", "", themeFlagUsage)
+	command.Flags().Bool("projects", false, projectsFlagUsage)
 	command.Flags().BoolVar(&refresh, "refresh", false, "ignore and rebuild the project cache")
 
 	return command
@@ -77,7 +78,14 @@ func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool,
 	if len(configPaths) > 0 {
 		configPath = configPaths[0]
 	}
-	workspaces, err := configuredWorkspaces(args, configPath)
+	projectsFirst, _ := cmd.Flags().GetBool("projects")
+	startPath := ""
+	if !projectsFirst {
+		if startPath, err = startFolder(args); err != nil {
+			return err
+		}
+	}
+	workspaces, err := catalogWorkspaces(args, projectsFirst, configPath)
 	if err != nil {
 		return err
 	}
@@ -86,11 +94,6 @@ func runPicker(cmd *cobra.Command, args []string, icons icon.Mode, refresh bool,
 		return err
 	}
 	decorateProjectsBestEffort(cmd, statePath, projects)
-
-	startPath := ""
-	if len(workspaces) > 0 {
-		startPath = workspaces[0]
-	}
 
 	selected, found, err := tui.SelectWithOptions(cmd.Context(), projects, tui.Options{
 		Icons:          icons,
@@ -239,4 +242,41 @@ func runPlanner(configPath configPathFunc) func(project.Project) (tui.RunPlan, b
 		}
 		return tui.RunPlan{}, false
 	}
+}
+
+const projectsFlagUsage = "open the project list instead of the current folder"
+
+// startFolder is where the browser opens: the folder argument, else the
+// current directory.
+func startFolder(args []string) (string, error) {
+	folder, err := workspaceFrom(args)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(folder)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%q is not a directory", folder)
+	}
+	return folder, nil
+}
+
+// catalogWorkspaces are the folders scanned for the project list (p). With
+// --projects a folder argument is the workspace itself; otherwise the
+// argument is only where browsing starts, and the catalog is the configured
+// workspaces, falling back to that folder.
+func catalogWorkspaces(args []string, projectsFirst bool, configPath configPathFunc) ([]string, error) {
+	if projectsFirst || configPath == nil {
+		return configuredWorkspaces(args, configPath)
+	}
+	if _, configuration, err := editableConfiguration(configPath); err == nil && len(configuration.Workspaces) > 0 {
+		return append([]string(nil), configuration.Workspaces...), nil
+	}
+	folder, err := workspaceFrom(args)
+	if err != nil {
+		return nil, err
+	}
+	return []string{folder}, nil
 }

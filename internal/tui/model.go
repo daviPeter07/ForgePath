@@ -32,6 +32,8 @@ var (
 	dockerKey   = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "compose"))
 	favoriteKey = key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "favorite"))
 	runKey      = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "run"))
+	projectsKey = key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "projects"))
+	folderKey   = key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "back to folder"))
 	backKey     = key.NewBinding(key.WithKeys("backspace", "left"), key.WithHelp("←", "back"))
 	moveKey     = key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑↓", "move"))
 	filterKey   = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter"))
@@ -101,6 +103,12 @@ func (m Model) footerView() string {
 	}
 	if m.mode != projectScreen {
 		navigation = append(navigation, backKey)
+	}
+	switch {
+	case m.mode == directoryScreen:
+		navigation = append(navigation, projectsKey)
+	case m.mode == projectScreen && m.folderBeforeProjects != nil:
+		navigation = append(navigation, folderKey)
 	}
 	navigation = append(navigation, quitKey)
 
@@ -452,6 +460,8 @@ type Model struct {
 	hasSelection   bool
 	cancelled      bool
 	initCommand    tea.Cmd
+	// folderBeforeProjects is where p returns from the project list.
+	folderBeforeProjects *browseState
 	// changesOnly limits the project list to projects with uncommitted changes.
 	changesOnly   bool
 	width, height int
@@ -515,7 +525,9 @@ func NewModelWithOptions(projects []project.Project, options Options) Model {
 		runPlans:   map[string]runPlanEntry{},
 		exec:       tea.Exec,
 	}
-	if len(projects) == 0 && options.StartPath != "" {
+	// A start folder (the current directory, or the one given to fg) opens
+	// the folder browser; the project list stays one p away.
+	if options.StartPath != "" {
 		if _, err := model.showDirectory(options.StartPath); err != nil {
 			model.showProjects()
 		}
@@ -617,6 +629,8 @@ func (m Model) update(message tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, m.runSelected()
+		case "p":
+			return m, m.toggleProjects()
 		case "!":
 			if m.mode != projectScreen {
 				return m, nil

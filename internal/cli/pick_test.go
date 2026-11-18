@@ -21,7 +21,7 @@ func TestPickCommandPrintsOnlySelectedPath(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	command := NewRootCommand(&stdout, &stderr)
-	command.SetIn(strings.NewReader("\x1b[Bc"))
+	command.SetIn(strings.NewReader("\x1b[B\rc")) // down to "web app", enter it, cd
 	command.SetArgs([]string{"pick", workspace, "--print-path", "--icons", "nerd-font"})
 
 	if err := command.Execute(); err != nil {

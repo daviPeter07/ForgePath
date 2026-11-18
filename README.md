@@ -253,13 +253,15 @@ fg workspace list
 
 A workspace is the folder that *contains* your project folders: ForgePath scans its direct subfolders. `fg workspace add` reports how many projects it found, and warns when the folder is empty or is itself a project.
 
-When at least one workspace is configured, `fg`, `list` and `pick` show the projects of every workspace, and `open`, `reveal`, `run` and `favorite` find a project by name in any of them. Without workspaces, ForgePath uses the current directory. Pass a workspace argument to limit a command to one folder; this is also how to pick a project whose name exists in more than one workspace.
+When at least one workspace is configured, `list` and the selector's project list (`p`, or `fg --projects`) show the projects of every workspace, and `open`, `reveal`, `run` and `favorite` find a project by name in any of them. Without workspaces, ForgePath uses the current directory. Pass a workspace argument to limit a command to one folder; this is also how to pick a project whose name exists in more than one workspace.
 
 ```bash
-fg
+fg                  # browse the current folder
+fg ~/Desktop/work   # browse another folder
+fg --projects       # start in the project list
 ```
 
-Open the persistent terminal browser. Browsing projects, entering subdirectories, returning to parents, searching, and launching an IDE all happen without stopping ForgePath.
+Open the persistent terminal browser in the current folder, or in the folder given. `Enter` goes into a folder and `Backspace`/`←` goes up to its parent, past the folder you started in. Folders that are projects show their technology, and `c` changes the shell to the folder shown. `p` switches to the project list of your workspaces and back to the same folder. Searching and launching an IDE also happen without stopping ForgePath.
 
 The IDE chooser verifies installed executables before showing them and ranks technology-specific tools first. For example, a PHP project suggests PhpStorm before Visual Studio Code when both are installed; TypeScript prefers WebStorm, Python prefers PyCharm, Go prefers GoLand, Java prefers IntelliJ IDEA, and Rust prefers RustRover.
 
@@ -292,6 +294,7 @@ ForgePath checks `PATH` and common installation locations. Detection covers stan
 | `c` | Close ForgePath and change the shell to the directory currently displayed |
 | `f` | Add or remove the selected project from favorites (project list) |
 | `r` | Run the selected project's development command; a detected command asks for a second `r` first. `Ctrl+C` stops it and returns to the selector |
+| `p` | Switch between the folder browser and the project list of your workspaces |
 | `!` | Show only projects with uncommitted changes, or all projects again (project list) |
 | `Esc` | Close search or return to the previous internal screen |
 | `q` / `Ctrl+C` | Quit without changing the shell directory |
@@ -314,7 +317,7 @@ Scan a workspace and rebuild its project cache. `fg`, `list`, and `pick` reuse c
 fg pick --print-path
 ```
 
-Browse projects and print the current directory only after `c` is pressed. This machine-readable output is used by the shell integration.
+Browse like `fg` and print the folder shown only after `c` is pressed. This machine-readable output is used by the shell integration.
 
 On terminals at least 100 columns wide, the selector shows an inspector panel next to the list. On truecolor terminals the panel draws the technology logo: the Devicon SVGs are embedded in the binary, rasterized at 20×20 pixels and drawn with ANSI half-block characters, without a Nerd Font or a terminal-specific image protocol. List rows always use compact text badges. Choose badges or Nerd Font glyphs everywhere with:
 

@@ -18,11 +18,13 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	var rootIconMode string
 	var rootRefresh bool
 	command := &cobra.Command{
-		Use:           "fg",
-		Short:         "Discover software projects in a workspace",
+		Use:   "fg [folder]",
+		Short: "Browse folders and projects from the terminal",
+		Long: "fg opens a browser in the current folder (or the folder given): enter and\n" +
+			"leave folders, press c to cd into the one shown, p for your projects.",
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Args:          cobra.NoArgs,
+		Args:          cobra.MaximumNArgs(1),
 	}
 	command.SetOut(out)
 	command.SetErr(errOut)
@@ -31,6 +33,7 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 	command.PersistentFlags().StringVar(&configuredCachePath, "cache", configuredCachePath, "project cache directory")
 	command.Flags().StringVar(&rootIconMode, "icons", string(icon.ModeAuto), "icon mode: auto, graphics, ascii, or nerd-font")
 	command.Flags().String("theme", "", themeFlagUsage)
+	command.Flags().Bool("projects", false, projectsFlagUsage)
 	command.Flags().BoolVar(&rootRefresh, "refresh", false, "ignore and rebuild the project cache")
 	configPath := func() (string, error) {
 		return resolveConfigPath(configuredPath)
@@ -50,12 +53,12 @@ func NewRootCommand(out, errOut io.Writer) *cobra.Command {
 		}
 		return (catalog.Store{Directory: path}).Scan(workspace, refresh)
 	}
-	command.RunE = func(cmd *cobra.Command, _ []string) error {
+	command.RunE = func(cmd *cobra.Command, args []string) error {
 		icons, err := icon.ParseMode(rootIconMode)
 		if err != nil {
 			return err
 		}
-		return runPicker(cmd, nil, icons, rootRefresh, scan, statePath, configPath)
+		return runPicker(cmd, args, icons, rootRefresh, scan, statePath, configPath)
 	}
 	command.AddCommand(newConfiguredListCommand(scan, statePath, configPath))
 	command.AddCommand(newConfiguredPickCommand(scan, statePath, configPath))
