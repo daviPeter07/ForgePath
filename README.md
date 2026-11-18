@@ -281,6 +281,7 @@ ForgePath checks `PATH` and common installation locations. Detection covers stan
 | `Enter` | Enter the selected project/directory, or launch the selected IDE |
 | `Backspace` / `←` | Return to the parent directory or project list without closing ForgePath |
 | `o` | Show compatible IDEs that were verified as installed |
+| `d` | Generate a `docker-compose.yml` from a template (never replaces an existing Compose file) |
 | `c` | Close ForgePath and change the shell to the directory currently displayed |
 | `Esc` | Close search or return to the previous internal screen |
 | `q` / `Ctrl+C` | Quit without changing the shell directory |
